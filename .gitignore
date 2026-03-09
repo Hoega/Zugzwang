@@ -1,0 +1,26 @@
+# Rust
+target/
+*.swp
+
+# Node
+node_modules/
+.svelte-kit/
+build/
+dist/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+postgres-data/
