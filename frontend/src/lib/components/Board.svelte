@@ -70,6 +70,12 @@
 		aspect-ratio: 1;
 	}
 
+	@media (max-width: 768px) {
+		.board-wrap {
+			max-width: 100%;
+		}
+	}
+
 	.board {
 		width: 100%;
 		height: 100%;

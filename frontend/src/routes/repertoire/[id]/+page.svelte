@@ -624,4 +624,32 @@
 		font-size: 0.8rem;
 		color: var(--color-text);
 	}
+
+	@media (max-width: 768px) {
+		.toolbar {
+			flex-wrap: wrap;
+			gap: 0.5rem;
+		}
+
+		.toolbar-actions {
+			flex-wrap: wrap;
+		}
+
+		.layout {
+			grid-template-columns: 1fr;
+		}
+
+		.board-area {
+			order: -1;
+		}
+
+		.board-with-eval {
+			max-width: 100%;
+		}
+
+		.sidebar-left,
+		.sidebar-right {
+			min-height: auto;
+		}
+	}
 </style>

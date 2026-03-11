@@ -44,4 +44,15 @@
 		margin: 0 auto;
 		padding: 1.5rem;
 	}
+
+	@media (max-width: 768px) {
+		nav {
+			padding: 0.5rem 1rem;
+			gap: 1rem;
+		}
+
+		main {
+			padding: 0.75rem;
+		}
+	}
 </style>

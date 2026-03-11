@@ -776,4 +776,18 @@
 	.resume-btn:hover {
 		opacity: 0.9;
 	}
+
+	@media (max-width: 768px) {
+		.drill-layout {
+			grid-template-columns: 1fr;
+		}
+
+		.board-area {
+			order: -1;
+		}
+
+		.board-with-eval {
+			max-width: 100%;
+		}
+	}
 </style>
