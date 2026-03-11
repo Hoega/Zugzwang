@@ -95,7 +95,7 @@ tasks:
           git pull &&
           docker compose -f docker-compose.prod.yml build &&
           docker build -t zugzwang-frontend ./frontend &&
-          CONTAINER=$(docker create zugzwang-frontend) &&
+          CONTAINER=$(docker create zugzwang-frontend /bin/true) &&
           rm -rf /var/www/zugzwang &&
           docker cp $CONTAINER:/build /var/www/zugzwang &&
           docker rm $CONTAINER &&
