@@ -44,6 +44,15 @@
 	let repertoireId = $derived($page.params.id);
 	let currentPosition = $derived(positions[currentIndex] ?? null);
 
+	let lineName = $derived.by(() => {
+		const pos = currentPosition;
+		if (!pos) return null;
+		for (const m of pos.line) {
+			if (m.variant_name) return m.variant_name;
+		}
+		return null;
+	});
+
 	// During exploration, which line move index is currently viewed (-1 if viewing a free move)
 	let exploreLineIndex = $derived.by(() => {
 		if (!exploring || !currentPosition) return -1;
@@ -400,7 +409,7 @@
 
 	<div class="drill-layout" class:hidden={phase === 'selecting'}>
 		<div class="pgn-panel">
-			<h3>Moves</h3>
+			<h3>{lineName ?? 'Moves'}</h3>
 			<div class="pgn-rows">
 				{#each pgnRows as row}
 					<div class="pgn-row">
@@ -411,14 +420,14 @@
 							class:target={row.white?.isTarget}
 							class:future={row.white && !row.white.isPlayed && !row.white.isTarget}
 							class:active={row.white?.isActive}
-						>{row.white?.san ?? ''}</span>
+						>{row.white?.isTarget && !row.white?.isPlayed ? '??' : row.white?.san ?? ''}</span>
 						<span
 							class="pgn-move"
 							class:played={row.black?.isPlayed}
 							class:target={row.black?.isTarget}
 							class:future={row.black && !row.black.isPlayed && !row.black.isTarget}
 							class:active={row.black?.isActive}
-						>{row.black?.san ?? ''}</span>
+						>{row.black?.isTarget && !row.black?.isPlayed ? '??' : row.black?.san ?? ''}</span>
 					</div>
 				{/each}
 			</div>
