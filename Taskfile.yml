@@ -84,3 +84,21 @@ tasks:
           FRONTEND_PID=$!
           trap "kill $BACKEND_PID $FRONTEND_PID 2>/dev/null" EXIT
           wait
+
+  deploy:vps:
+    desc: Deploy to production VPS (SSH, pull, rebuild)
+    cmds:
+      - |
+        ssh -i ~/.ssh/vps_frouxel root@srv1335537.hstgr.cloud '
+          set -e &&
+          cd /root/Zugzwang &&
+          git pull &&
+          docker compose -f docker-compose.prod.yml build &&
+          docker build -t zugzwang-frontend ./frontend &&
+          CONTAINER=$(docker create zugzwang-frontend) &&
+          rm -rf /var/www/zugzwang &&
+          docker cp $CONTAINER:/build /var/www/zugzwang &&
+          docker rm $CONTAINER &&
+          docker compose -f docker-compose.prod.yml up -d
+        '
+      - echo "✅ Deployed to VPS"

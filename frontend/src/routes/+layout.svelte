@@ -8,6 +8,7 @@
 	<a href="/" class="brand">Zugzwang</a>
 	<div class="links">
 		<a href="/">Repertoires</a>
+		<a href="/openings">Openings</a>
 		<a href="/explorer">Explorer</a>
 		<a href="/dashboard">Dashboard</a>
 	</div>

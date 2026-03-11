@@ -34,6 +34,9 @@
 	let engineLines = $state<MultiPvLine[]>([]);
 	let engine: Engine | null = null;
 	let engineReady = $state(false);
+	let computerEnabled = $state(false);
+	let computerThinking = $state(false);
+	let moveSource = $state<'user' | 'nav' | 'init'>('init');
 
 	let puzzles = $state<PuzzlePosition[]>([]);
 	let puzzleIndex = $state(-1);
@@ -41,14 +44,16 @@
 	let boardConfig = $derived.by(() => {
 		const chess = new Chess(currentFen);
 		const color = turnColor(currentFen);
+		const isComputerTurn = computerEnabled && color !== orientation;
 		return {
 			fen: currentFen,
 			orientation,
 			turnColor: color,
+			lastMove: historyIndex >= 0 ? [moveHistory[historyIndex].uci.slice(0, 2), moveHistory[historyIndex].uci.slice(2, 4)] : [],
 			movable: {
-				color,
+				color: isComputerTurn ? undefined : color,
 				free: false,
-				dests: toDests(chess)
+				dests: isComputerTurn ? new Map() : toDests(chess)
 			}
 		} as Config;
 	});
@@ -90,7 +95,7 @@
 	});
 
 	$effect(() => {
-		if (!showEval) {
+		if (!showEval && !showBestMoves) {
 			evalScore = null;
 			evalMate = null;
 			engineLines = [];
@@ -115,6 +120,37 @@
 		}
 	});
 
+	$effect(() => {
+		if (!computerEnabled || !engineReady || !engine) return;
+		const fen = currentFen;
+		const color = turnColor(fen);
+		if (color === orientation) return;
+		if (moveSource !== 'user') return;
+
+		computerThinking = true;
+		let cancelled = false;
+		let bestMoveUci = '';
+
+		engine.evaluate(fen, (result) => {
+			if (cancelled) return;
+			if (result.pv) bestMoveUci = result.pv.split(' ')[0];
+			if (result.depth >= 12 && bestMoveUci) {
+				cancelled = true;
+				setTimeout(() => {
+					if (computerEnabled) {
+						handleMove(bestMoveUci.slice(0, 2), bestMoveUci.slice(2, 4));
+					}
+					computerThinking = false;
+				}, 300);
+			}
+		}, 12);
+
+		return () => {
+			cancelled = true;
+			computerThinking = false;
+		};
+	});
+
 	let engineArrows = $derived(makeEngineArrows(engineLines, orientation));
 
 	function handleMove(orig: string, dest: string) {
@@ -136,6 +172,7 @@
 		moveHistory = [...moveHistory, entry];
 		historyIndex = moveHistory.length - 1;
 		currentFen = chess.fen();
+		moveSource = 'user';
 		updatePgn();
 	}
 
@@ -143,21 +180,26 @@
 		if (idx < -1 || idx >= moveHistory.length) return;
 		historyIndex = idx;
 		currentFen = idx === -1 ? startFen : moveHistory[idx].fen;
+		moveSource = 'nav';
 	}
 
 	function goBack() {
+		if (computerThinking) return;
 		if (historyIndex >= 0) navigateToIndex(historyIndex - 1);
 	}
 
 	function goForward() {
+		if (computerThinking) return;
 		if (historyIndex < moveHistory.length - 1) navigateToIndex(historyIndex + 1);
 	}
 
 	function goToStart() {
+		if (computerThinking) return;
 		navigateToIndex(-1);
 	}
 
 	function goToEnd() {
+		if (computerThinking) return;
 		if (moveHistory.length > 0) navigateToIndex(moveHistory.length - 1);
 	}
 
@@ -174,6 +216,7 @@
 		pgnText = '';
 		puzzles = [];
 		puzzleIndex = -1;
+		moveSource = 'init';
 	}
 
 	function updatePgn() {
@@ -249,6 +292,7 @@
 		moveHistory = [...puzzle.moves];
 		historyIndex = -1;
 		currentFen = puzzle.fen;
+		moveSource = 'init';
 		// Orient board to the side that moves
 		orientation = turnColor(puzzle.fen);
 	}
@@ -320,6 +364,7 @@
 		<div class="toolbar-actions">
 			<button class:active={showEval} onclick={() => showEval = !showEval}>Eval</button>
 			<button class:active={showBestMoves} onclick={() => showBestMoves = !showBestMoves}>Best Moves</button>
+			<button class:active={computerEnabled} onclick={() => computerEnabled = !computerEnabled}>Computer</button>
 			<button onclick={flipBoard}>Flip Board</button>
 			<button onclick={resetBoard}>Reset</button>
 		</div>

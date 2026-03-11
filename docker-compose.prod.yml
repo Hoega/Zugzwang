@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: zugzwang
+      POSTGRES_USER: zugzwang
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on: [db]
+    environment:
+      ZUGZWANG_DATABASE_URL: postgres://zugzwang:${POSTGRES_PASSWORD}@db:5432/zugzwang
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  frontend-build:
+    build: ./frontend
+    profiles: ["build"]
+
+volumes:
+  postgres-data:

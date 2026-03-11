@@ -50,9 +50,15 @@ Monorepo with a Rust/Axum backend (`backend/`) and SvelteKit 5 frontend (`fronte
 - **SvelteKit 5 with runes** (`$state`, `$derived`, `$effect`, `$props`) — do NOT use legacy `export let` or `$:` syntax
 - **chessground** for board rendering (initialized in `onMount`, updated via `$effect`)
 - **chess.js** only for client-side legal move hints (`toDests()` in `utils/chess.ts`) — never as FEN authority
-- **Stores** (`stores/`): `api.ts` (typed fetch wrapper for all endpoints), `game.ts`, `repertoire.ts`, `drill.ts`
-- **Pages**: home (`/`), builder (`/repertoire/[id]`), drill (`/train/[id]`), dashboard (`/dashboard`)
-- **Stockfish**: WASM engine in `static/` (stockfish.js, stockfish.wasm, stockfish-worker.js) — first load compiles WASM (~15-20s)
+- **Stores** (`stores/`): `api.ts` (typed fetch wrapper for all endpoints), `game.ts`, `repertoire.ts`, `drill.ts`, `lichess.ts` (Lichess explorer API with caching/debounce)
+- **Utils** (`utils/`): `chess.ts` (legal move dests via chess.js), `engine.ts` (`Engine` class wrapping Stockfish WASM worker with multi-PV support), `shapes.ts` (chessground arrow rendering for engine lines)
+- **Data**: `data/eco.json` — ECO opening classification lookup
+- **Pages**: home (`/`), builder (`/repertoire/[id]`), drill (`/train/[id]`), dashboard (`/dashboard`), explorer (`/explorer`), openings browser (`/openings`, `/openings/explorer`)
+- **Stockfish**: WASM engine in `static/` (stockfish.js, stockfish.wasm, stockfish-worker.js) — worker loaded via `new Worker('/stockfish-worker.js#/stockfish.wasm')`. First load compiles WASM (~15-20s). Engine init is non-blocking with `engineReady` state flag.
+
+### External APIs
+
+- **Lichess Explorer** (`stores/lichess.ts`): fetches opening stats from `explorer.lichess.ovh` (masters + lichess databases). Results are cached in-memory with request debouncing and abort-on-supersede.
 
 ### Key Invariant
 
@@ -73,6 +79,14 @@ The backend (shakmaty) is the canonical FEN source. When a move is added, the ba
 | `/api/stats/overview` | GET | Global stats |
 | `/api/stats/:id` | GET | Per-repertoire stats |
 | `/api/stats/:id/heatmap` | GET | Accuracy by destination square |
+| `/api/repertoires/:id/variants` | GET | List named variants |
+| `/api/repertoires/:id/transpositions` | GET | Find transposition groups by FEN |
+| `/api/repertoires/:id/gaps` | GET | Coverage gap analysis |
+
+## SvelteKit Notes
+
+- Use `import MoveTree from './MoveTree.svelte'` for recursive components (not deprecated `<svelte:self>`)
+- All types are in `$lib/types/index.ts` — keep frontend types in sync with backend response shapes
 
 ## shakmaty 0.28 Notes
 

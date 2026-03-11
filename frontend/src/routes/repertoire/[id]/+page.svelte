@@ -13,6 +13,7 @@
 	import { Engine, type MultiPvLine } from '$lib/utils/engine';
 	import { makeEngineArrows } from '$lib/utils/shapes';
 	import { toDests, turnColor, STARTING_FEN } from '$lib/utils/chess';
+	import { lookupOpening, ecoColor } from '$lib/utils/eco';
 	import type { Repertoire, MoveTreeNode, MoveNode } from '$lib/types';
 	import type { Config } from 'chessground/config';
 	import type { DrawShape } from 'chessground/draw';
@@ -30,6 +31,7 @@
 	let transpositionIds = $state<Set<string>>(new Set());
 	let gapIds = $state<Set<string>>(new Set());
 	let viewMode = $state<'tree' | 'lines'>('tree');
+	let flipped = $state(false);
 	let currentLineIndex = $state<number | null>(null);
 	let evalScore = $state<number | null>(null);
 	let evalMate = $state<number | null>(null);
@@ -42,7 +44,8 @@
 	let boardConfig = $derived.by(() => {
 		const chess = new Chess(currentFen);
 		const color = turnColor(currentFen);
-		const orientation = repertoire?.color ?? 'white';
+		const defaultOrientation = repertoire?.color ?? 'white';
+		const orientation = flipped ? (defaultOrientation === 'white' ? 'black' : 'white') : defaultOrientation;
 		return {
 			fen: currentFen,
 			orientation,
@@ -217,7 +220,10 @@
 		}];
 	});
 
-	let engineArrows = $derived(makeEngineArrows(engineLines, repertoire?.color ?? 'white'));
+	let currentOpening = $derived(lookupOpening(currentFen));
+
+	let boardOrientation = $derived(boardConfig.orientation as 'white' | 'black');
+	let engineArrows = $derived(makeEngineArrows(engineLines, boardOrientation));
 
 	let allShapes = $derived([...nagShapes, ...engineArrows]);
 
@@ -350,6 +356,7 @@
 			{/if}
 			<div class="toolbar-actions">
 				<button class:active={showBestMoves} onclick={() => showBestMoves = !showBestMoves}>Best Moves</button>
+				<button onclick={() => flipped = !flipped}>Flip Board</button>
 				<button onclick={navigateToStart}>Start Position</button>
 				<button onclick={() => (showImport = true)}>Import PGN</button>
 				<button onclick={handleExport}>Export PGN</button>
@@ -392,14 +399,20 @@
 
 			<div class="board-area">
 				<div class="board-with-eval">
-					<EvalBar score={evalScore} mate={evalMate} orientation={repertoire?.color ?? 'white'} />
+					<EvalBar score={evalScore} mate={evalMate} orientation={boardOrientation} />
 					<Board config={boardConfig} onMove={handleMove} shapes={allShapes} />
 				</div>
 			</div>
 
 			<div class="sidebar-right">
+				{#if currentOpening}
+					<div class="opening-tag" style:border-left-color={ecoColor(currentOpening.eco)}>
+						<span class="eco-code" style:background={ecoColor(currentOpening.eco)}>{currentOpening.eco}</span>
+						<span class="opening-name">{currentOpening.name}</span>
+					</div>
+				{/if}
 				{#if showBestMoves && engineLines.length > 0}
-					<BestMoves lines={engineLines} fen={currentFen} orientation={repertoire?.color ?? 'white'} onPlayMove={(uci) => handleMove(uci.slice(0, 2), uci.slice(2, 4))} />
+					<BestMoves lines={engineLines} fen={currentFen} orientation={boardOrientation} onPlayMove={(uci) => handleMove(uci.slice(0, 2), uci.slice(2, 4))} />
 				{/if}
 				<AnnotationEditor
 					move={selectedMove}
@@ -586,5 +599,29 @@
 
 	.delete-btn:hover {
 		background: #fed7d7;
+	}
+
+	.opening-tag {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.6rem 0.75rem;
+		border-left: 3px solid;
+		background: var(--color-surface);
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.eco-code {
+		font-size: 0.7rem;
+		font-weight: 700;
+		color: white;
+		padding: 1px 6px;
+		border-radius: 3px;
+		flex-shrink: 0;
+	}
+
+	.opening-name {
+		font-size: 0.8rem;
+		color: var(--color-text);
 	}
 </style>

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { MoveTreeNode, MoveNode } from '$lib/types';
 	import { api } from '$lib/stores/api';
+	import { lookupOpening, ecoColor } from '$lib/utils/eco';
 
 	let { nodes, selectedId = null, onSelect = () => {}, transpositionIds = new Set(), gapIds = new Set(), repertoireId = '', onRename, onDelete }: {
 		nodes: MoveTreeNode[];
@@ -19,6 +20,7 @@
 	type Line = {
 		label: string;
 		moves: MoveTreeNode[];
+		ecoTag: { eco: string; name: string } | null;
 	};
 
 	let lines = $derived.by((): Line[] => {
@@ -40,7 +42,12 @@
 					lineIndex++;
 					label = `Line ${lineIndex}`;
 				}
-				result.push({ label, moves: [...path] });
+				let ecoTag: { eco: string; name: string } | null = null;
+				for (let i = path.length - 1; i >= 0; i--) {
+					const match = lookupOpening(path[i].fen);
+					if (match) { ecoTag = match; break; }
+				}
+				result.push({ label, moves: [...path], ecoTag });
 				return;
 			}
 			for (const child of children) {
@@ -190,6 +197,11 @@
 							<svg class="pencil-icon" viewBox="0 0 16 16" width="12" height="12"><path fill="currentColor" d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L3.463 11.098a.25.25 0 00-.064.108l-.563 1.97 1.971-.564a.25.25 0 00.108-.064l8.61-8.61a.25.25 0 000-.354l-1.098-1.097z"/></svg>
 						</button>
 					{/if}
+					{#if line.ecoTag}
+						<a class="eco-tag" style:background={ecoColor(line.ecoTag.eco)} href="/openings?eco={line.ecoTag.eco}&name={encodeURIComponent(line.ecoTag.name)}">
+							{line.ecoTag.eco} · {line.ecoTag.name}
+						</a>
+					{/if}
 					<span class="line-count">{line.moves.length} moves</span>
 					<button class="line-delete" title="Delete line" onclick={() => deleteLine(idx)}>✕</button>
 				</div>
@@ -232,8 +244,8 @@
 
 	.line-header {
 		display: flex;
-		justify-content: space-between;
 		align-items: center;
+		gap: 0.4rem;
 		padding: 0.25rem 0;
 	}
 
@@ -278,6 +290,7 @@
 	.line-count {
 		font-size: 0.7rem;
 		color: #888;
+		margin-left: auto;
 	}
 
 	.line-delete {
@@ -401,5 +414,22 @@
 
 	.nag-interesting {
 		color: #dd6b20;
+	}
+
+	.eco-tag {
+		font-size: 0.68rem;
+		font-weight: 600;
+		color: white;
+		padding: 1px 6px;
+		border-radius: 3px;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		max-width: 12rem;
+		text-decoration: none;
+	}
+
+	.eco-tag:hover {
+		opacity: 0.85;
 	}
 </style>
