@@ -353,4 +353,48 @@
 	.muted {
 		color: var(--color-muted);
 	}
+
+	@media (max-width: 768px) {
+		.header {
+			flex-direction: column;
+			align-items: stretch;
+		}
+
+		.header-actions {
+			flex-wrap: wrap;
+		}
+
+		.create-form {
+			flex-direction: column;
+		}
+
+		.card {
+			flex-direction: column;
+			align-items: stretch;
+			gap: 0.5rem;
+		}
+
+		.card-actions {
+			width: 100%;
+		}
+
+		.card-actions .btn,
+		.card-actions button {
+			min-height: 44px;
+			padding: 0.6rem 1rem;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.btn {
+			min-height: 44px;
+			padding: 0.6rem 1rem;
+		}
+
+		button.primary {
+			min-height: 44px;
+			padding: 0.6rem 1rem;
+		}
+	}
 </style>

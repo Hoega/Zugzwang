@@ -692,6 +692,10 @@
 			flex-wrap: wrap;
 		}
 
+		.toolbar-actions button {
+			min-height: 40px;
+		}
+
 		.layout {
 			grid-template-columns: 1fr;
 		}
@@ -707,6 +711,16 @@
 		.sidebar-left,
 		.sidebar-right {
 			min-height: auto;
+		}
+
+		.move-btn {
+			padding: 0.4rem 0.6rem;
+			min-height: 36px;
+		}
+
+		.nav-buttons button {
+			min-height: 44px;
+			min-width: 44px;
 		}
 	}
 </style>

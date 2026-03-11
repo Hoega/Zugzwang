@@ -255,4 +255,20 @@
 		color: #555;
 		border-radius: 0 0 0 3px;
 	}
+
+	@media (max-width: 768px) {
+		.move-btn {
+			padding: 6px 10px;
+			min-height: 36px;
+		}
+
+		.move-cell {
+			min-height: 36px;
+		}
+
+		.variant-badge {
+			padding: 4px 8px;
+			min-height: 32px;
+		}
+	}
 </style>

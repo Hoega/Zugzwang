@@ -789,5 +789,33 @@
 		.board-with-eval {
 			max-width: 100%;
 		}
+
+		.pgn-move {
+			padding: 0.3rem 0.5rem;
+		}
+
+		.variant-btn {
+			min-height: 44px;
+			padding: 0.6rem 1rem;
+		}
+
+		.hint-btn {
+			min-height: 44px;
+			padding: 0.5rem 1rem;
+		}
+
+		.resume-btn {
+			min-height: 44px;
+		}
+
+		button.primary {
+			min-height: 44px;
+		}
+
+		.pgn-panel h3 {
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
 	}
 </style>

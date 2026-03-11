@@ -635,6 +635,12 @@
 			flex-wrap: wrap;
 		}
 
+		.toolbar-actions button,
+		.toolbar-actions .btn {
+			min-height: 40px;
+			padding: 0.5rem 0.75rem;
+		}
+
 		.layout {
 			grid-template-columns: 1fr;
 		}
@@ -650,6 +656,19 @@
 		.sidebar-left,
 		.sidebar-right {
 			min-height: auto;
+		}
+
+		.delete-btn {
+			min-height: 44px;
+			padding: 0.5rem 0.75rem;
+		}
+
+		.drill-from-btn {
+			min-height: 44px;
+			padding: 0.5rem 0.75rem;
+			display: flex;
+			align-items: center;
+			justify-content: center;
 		}
 	}
 </style>

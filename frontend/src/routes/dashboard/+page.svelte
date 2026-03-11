@@ -279,4 +279,32 @@
 		font-size: 0.75rem;
 		color: var(--color-muted);
 	}
+
+	@media (max-width: 768px) {
+		.summary-cards {
+			grid-template-columns: repeat(2, 1fr);
+		}
+
+		.rep-row {
+			flex-wrap: wrap;
+		}
+
+		.progress-bar-wrap {
+			width: 100%;
+		}
+
+		.heatmap-btn {
+			min-height: 44px;
+			padding: 0.5rem 1rem;
+		}
+
+		.heatmap-cell {
+			width: 40px;
+			height: 40px;
+		}
+
+		.file-label {
+			width: 40px;
+		}
+	}
 </style>

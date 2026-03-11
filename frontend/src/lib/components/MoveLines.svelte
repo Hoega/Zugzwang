@@ -432,4 +432,31 @@
 	.eco-tag:hover {
 		opacity: 0.85;
 	}
+
+	@media (max-width: 768px) {
+		.move-btn {
+			padding: 6px 10px;
+			min-height: 36px;
+		}
+
+		.move-cell {
+			min-height: 36px;
+		}
+
+		.line-delete {
+			opacity: 1;
+		}
+
+		.pencil-icon {
+			opacity: 0.5;
+		}
+
+		.line-header {
+			flex-wrap: wrap;
+		}
+
+		.eco-tag {
+			font-size: 0.75rem;
+		}
+	}
 </style>

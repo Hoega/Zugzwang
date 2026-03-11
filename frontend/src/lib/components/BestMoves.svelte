@@ -124,4 +124,11 @@
 	.score.negative {
 		color: #ef4444;
 	}
+
+	@media (max-width: 768px) {
+		.line {
+			padding: 0.5rem 0.25rem;
+			min-height: 40px;
+		}
+	}
 </style>

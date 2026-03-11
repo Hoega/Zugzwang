@@ -48,7 +48,16 @@
 	@media (max-width: 768px) {
 		nav {
 			padding: 0.5rem 1rem;
-			gap: 1rem;
+			gap: 0.75rem;
+		}
+
+		.brand {
+			font-size: 1.1rem;
+		}
+
+		.links {
+			flex-wrap: wrap;
+			gap: 0.5rem;
 		}
 
 		main {
