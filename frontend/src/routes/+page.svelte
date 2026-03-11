@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api } from '$lib/stores/api';
-	import type { Repertoire } from '$lib/types';
+	import type { Repertoire, BundleExport } from '$lib/types';
 
 	let repertoires = $state<Repertoire[]>([]);
 	let loading = $state(true);
@@ -11,6 +11,9 @@
 	let creating = $state(false);
 	let editingId = $state<string | null>(null);
 	let editName = $state('');
+	let exporting = $state(false);
+	let importing = $state(false);
+	let bundleError = $state<string | null>(null);
 
 	onMount(async () => {
 		await loadRepertoires();
@@ -58,6 +61,47 @@
 		editingId = null;
 	}
 
+	async function exportAll() {
+		exporting = true;
+		bundleError = null;
+		try {
+			const bundle = await api.exportBundle();
+			const json = JSON.stringify(bundle, null, 2);
+			const blob = new Blob([json], { type: 'application/json' });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = `zugzwang-backup-${new Date().toISOString().slice(0, 10)}.json`;
+			a.click();
+			URL.revokeObjectURL(url);
+		} catch (e) {
+			bundleError = e instanceof Error ? e.message : 'Export failed';
+		}
+		exporting = false;
+	}
+
+	async function importBundle() {
+		const input = document.createElement('input');
+		input.type = 'file';
+		input.accept = '.json';
+		input.onchange = async () => {
+			const file = input.files?.[0];
+			if (!file) return;
+			importing = true;
+			bundleError = null;
+			try {
+				const text = await file.text();
+				const data: BundleExport = JSON.parse(text);
+				await api.importBundle(data);
+				await loadRepertoires();
+			} catch (e) {
+				bundleError = e instanceof Error ? e.message : 'Import failed';
+			}
+			importing = false;
+		};
+		input.click();
+	}
+
 	async function deleteRepertoire(id: string) {
 		if (!confirm('Delete this repertoire?')) return;
 		try {
@@ -72,10 +116,22 @@
 <div class="home">
 	<div class="header">
 		<h1>Your Repertoires</h1>
-		<button class="primary" onclick={() => (showCreate = !showCreate)}>
-			{showCreate ? 'Cancel' : '+ New Repertoire'}
-		</button>
+		<div class="header-actions">
+			<button class="btn" onclick={importBundle} disabled={importing}>
+				{importing ? 'Importing...' : 'Import'}
+			</button>
+			<button class="btn" onclick={exportAll} disabled={exporting}>
+				{exporting ? 'Exporting...' : 'Export All'}
+			</button>
+			<button class="primary" onclick={() => (showCreate = !showCreate)}>
+				{showCreate ? 'Cancel' : '+ New Repertoire'}
+			</button>
+		</div>
 	</div>
+
+	{#if bundleError}
+		<p class="error">{bundleError}</p>
+	{/if}
 
 	{#if showCreate}
 		<form class="create-form" onsubmit={(e) => { e.preventDefault(); createRepertoire(); }}>
@@ -143,6 +199,20 @@
 		justify-content: space-between;
 		align-items: center;
 		margin-bottom: 1.5rem;
+	}
+
+	.header-actions {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+	}
+
+	.error {
+		color: var(--color-danger);
+		background: #fed7d7;
+		padding: 0.5rem 1rem;
+		border-radius: 4px;
+		margin-bottom: 1rem;
 	}
 
 	.create-form {

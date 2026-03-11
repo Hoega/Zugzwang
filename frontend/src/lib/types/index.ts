@@ -91,3 +91,28 @@ export interface TranspositionGroup {
 	fen: string;
 	move_ids: string[];
 }
+
+export interface BundleMove {
+	parent_index: number | null;
+	fen: string;
+	uci_move: string;
+	san_move: string;
+	move_number: number;
+	is_white_move: boolean;
+	comment: string | null;
+	nag: string | null;
+	variant_name: string | null;
+	sort_order: number;
+}
+
+export interface BundleRepertoire {
+	name: string;
+	color: string;
+	moves: BundleMove[];
+}
+
+export interface BundleExport {
+	version: number;
+	exported_at: string;
+	repertoires: BundleRepertoire[];
+}

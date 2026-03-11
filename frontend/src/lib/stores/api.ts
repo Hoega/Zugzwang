@@ -10,7 +10,8 @@ import type {
 	StatsOverview,
 	RepertoireStats,
 	HeatmapEntry,
-	TranspositionGroup
+	TranspositionGroup,
+	BundleExport
 } from '$lib/types';
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -108,5 +109,14 @@ export const api = {
 
 	getRepertoireStats: (id: string) => request<RepertoireStats>(`/api/stats/${id}`),
 
-	getHeatmap: (id: string) => request<HeatmapEntry[]>(`/api/stats/${id}/heatmap`)
+	getHeatmap: (id: string) => request<HeatmapEntry[]>(`/api/stats/${id}/heatmap`),
+
+	// Bundle export/import
+	exportBundle: () => request<BundleExport>('/api/bundle/export'),
+
+	importBundle: (data: BundleExport) =>
+		request<{ imported_repertoires: number; imported_moves: number }>('/api/bundle/import', {
+			method: 'POST',
+			body: JSON.stringify(data)
+		})
 };
