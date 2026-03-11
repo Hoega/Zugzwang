@@ -90,6 +90,7 @@ tasks:
     cmds:
       - git add -A
       - git commit -m "{{.CLI_ARGS | default "quick update"}}"
+      - git push
       - task: deploy:vps
 
   deploy:vps:

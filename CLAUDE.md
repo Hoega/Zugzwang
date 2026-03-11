@@ -4,10 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-All commands are available via [Task](https://taskfile.dev/) (`task --list`):
+All commands are available via [Taskfile](https://taskfile.dev/) (`Taskfile.yml` at repo root, run `task --list` to see all):
 
 ```bash
 task start              # Start everything in parallel (db + backend + frontend)
+task dev                # Start everything sequentially (db + backend + frontend)
 task db                 # Start PostgreSQL only
 task db:stop            # Stop PostgreSQL
 task db:reset           # Destroy and recreate database
@@ -16,6 +17,8 @@ task backend:test       # Run backend unit tests
 task backend:build      # Build backend
 task frontend:run       # Run frontend dev server
 task frontend:build     # Build frontend for production
+task deploy:vps         # Deploy to production VPS (pull, rebuild, restart)
+task deploy:quick       # Git add all, commit, and deploy (optional message: task deploy:quick -- "msg")
 ```
 
 Run a single backend test: `cd backend && cargo test test_name`
@@ -23,6 +26,16 @@ Run a single backend test: `cd backend && cargo test test_name`
 Type-check frontend: `cd frontend && npm run check`
 
 Frontend requires Node >= 25 (`nvm use 25`). Backend runs on `:3000`, frontend on `:5173` with vite proxy forwarding `/api` to the backend.
+
+## Deployment / Production
+
+Production is live at **https://zugzwang-theory.com/** and runs on a **Hostinger VPS** at `srv1335537.hstgr.cloud`.
+
+- **SSH**: `ssh -i ~/.ssh/vps_frouxel root@srv1335537.hstgr.cloud`
+- **Nginx** reverse-proxies to the backend on `127.0.0.1:3000` and serves the static frontend build from `/var/www/zugzwang`
+- **docker-compose.prod.yml**: runs PostgreSQL + backend containers; frontend is built in a throwaway container and copied to `/var/www/zugzwang`
+- **Deploy flow** (`task deploy:vps`): SSH in → `git pull` → rebuild backend + frontend Docker images → copy frontend static files → restart containers
+- Production DB password is set via `POSTGRES_PASSWORD` env var (see `.env.production.example`)
 
 ## Architecture
 
