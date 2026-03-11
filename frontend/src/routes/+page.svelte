@@ -175,7 +175,10 @@
 							<button class="editable-name" onclick={() => startEditing(rep)}><h3>{rep.name}</h3></button>
 						{/if}
 					</div>
-					<div class="card-actions">
+					<div class="card-stats">
+						{rep.move_count ?? 0} moves &middot; {rep.line_count ?? 0} lines
+					</div>
+				<div class="card-actions">
 						<a href="/repertoire/{rep.id}" class="btn">Edit</a>
 						<a href="/train/{rep.id}" class="btn">Drill</a>
 						<button class="btn danger" onclick={() => deleteRepertoire(rep.id)}>
@@ -276,6 +279,11 @@
 	.color-badge.black {
 		background: #333;
 		color: #fff;
+	}
+
+	.card-stats {
+		font-size: 0.8rem;
+		color: var(--color-muted);
 	}
 
 	.card-actions {

@@ -4,6 +4,8 @@ export interface Repertoire {
 	color: 'white' | 'black';
 	created_at: string;
 	updated_at: string;
+	move_count?: number;
+	line_count?: number;
 }
 
 export interface CreateRepertoire {

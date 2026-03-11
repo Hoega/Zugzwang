@@ -23,6 +23,7 @@
 	let sessionIncorrect = $state(0);
 	let phase = $state<'loading' | 'selecting' | 'drilling' | 'waiting' | 'done'>('loading');
 	let repertoireColor = $state<'white' | 'black'>('white');
+	let repertoireName = $state('');
 	let variants = $state<string[]>([]);
 	let selectedVariant = $state<string | undefined>(undefined);
 	let fromMoveId = $state<string | undefined>(undefined);
@@ -134,6 +135,7 @@
 		try {
 			const rep = await api.getRepertoire(repertoireId);
 			repertoireColor = rep.color as 'white' | 'black';
+			repertoireName = rep.name;
 
 			// Check for from_move_id in URL params
 			const urlFromMoveId = $page.url.searchParams.get('from_move_id');
@@ -409,7 +411,7 @@
 
 	<div class="drill-layout" class:hidden={phase === 'selecting'}>
 		<div class="pgn-panel">
-			<h3>{lineName ?? 'Moves'}</h3>
+			<h3>{repertoireName}{lineName ? ` — ${lineName}` : ''}</h3>
 			<div class="pgn-rows">
 				{#each pgnRows as row}
 					<div class="pgn-row">

@@ -85,6 +85,13 @@ tasks:
           trap "kill $BACKEND_PID $FRONTEND_PID 2>/dev/null" EXIT
           wait
 
+  deploy:quick:
+    desc: Git add all, commit with message, and deploy to VPS
+    cmds:
+      - git add -A
+      - git commit -m "{{.CLI_ARGS | default "quick update"}}"
+      - task: deploy:vps
+
   deploy:vps:
     desc: Deploy to production VPS (SSH, pull, rebuild)
     cmds:

@@ -9,6 +9,17 @@ use uuid::Uuid;
 use crate::error::AppError;
 use crate::models::repertoire::{CreateRepertoire, Repertoire, UpdateRepertoire};
 
+#[derive(serde::Serialize, sqlx::FromRow)]
+struct RepertoireWithCounts {
+    id: uuid::Uuid,
+    name: String,
+    color: String,
+    created_at: chrono::DateTime<chrono::Utc>,
+    updated_at: chrono::DateTime<chrono::Utc>,
+    move_count: i64,
+    line_count: i64,
+}
+
 pub fn router() -> Router<PgPool> {
     Router::new()
         .route("/api/repertoires", get(list).post(create))
@@ -18,9 +29,17 @@ pub fn router() -> Router<PgPool> {
         )
 }
 
-async fn list(State(pool): State<PgPool>) -> Result<Json<Vec<Repertoire>>, AppError> {
-    let repertoires = sqlx::query_as::<_, Repertoire>(
-        "SELECT * FROM repertoires ORDER BY created_at DESC",
+async fn list(State(pool): State<PgPool>) -> Result<Json<Vec<RepertoireWithCounts>>, AppError> {
+    let repertoires = sqlx::query_as::<_, RepertoireWithCounts>(
+        r#"SELECT r.id, r.name, r.color, r.created_at, r.updated_at,
+                  COUNT(m.id) AS move_count,
+                  COUNT(m.id) FILTER (WHERE NOT EXISTS (
+                      SELECT 1 FROM moves c WHERE c.parent_id = m.id
+                  )) AS line_count
+           FROM repertoires r
+           LEFT JOIN moves m ON m.repertoire_id = r.id
+           GROUP BY r.id
+           ORDER BY r.created_at DESC"#,
     )
     .fetch_all(&pool)
     .await?;
