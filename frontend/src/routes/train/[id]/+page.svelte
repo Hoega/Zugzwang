@@ -27,6 +27,7 @@
 	let variants = $state<string[]>([]);
 	let selectedVariant = $state<string | undefined>(undefined);
 	let fromMoveId = $state<string | undefined>(undefined);
+	let drillMode = $state<'due' | 'all'>('due');
 	let animating = $state(false);
 	let hadIncorrectAttempt = $state(false);
 	let hintSquare = $state<Key | null>(null);
@@ -137,6 +138,10 @@
 			repertoireColor = rep.color as 'white' | 'black';
 			repertoireName = rep.name;
 
+			// Check for mode in URL params
+			const urlMode = $page.url.searchParams.get('mode');
+			if (urlMode === 'all') drillMode = 'all';
+
 			// Check for from_move_id in URL params
 			const urlFromMoveId = $page.url.searchParams.get('from_move_id');
 			if (urlFromMoveId) {
@@ -146,11 +151,7 @@
 			}
 
 			variants = await api.getVariants(repertoireId);
-			if (variants.length > 0) {
-				phase = 'selecting';
-			} else {
-				await loadBatch();
-			}
+			phase = 'selecting';
 		} catch (e) {
 			console.error('Failed to start drill:', e);
 		}
@@ -182,7 +183,7 @@
 	async function loadBatch() {
 		phase = 'loading';
 		try {
-			const batch = await api.getNextBatch(repertoireId, selectedVariant, fromMoveId);
+			const batch = await api.getNextBatch(repertoireId, selectedVariant, fromMoveId, drillMode);
 			positions = batch.positions;
 			totalDue = batch.total_due;
 
@@ -392,13 +393,17 @@
 		{#if phase === 'drilling' || phase === 'waiting'}
 			<span class="progress">
 				{currentIndex + 1} / {positions.length}
-				({totalDue} total due)
+				({totalDue} {drillMode === 'all' ? 'total moves' : 'total due'})
 			</span>
 		{/if}
 	</div>
 
 	{#if phase === 'selecting'}
 		<div class="variant-selector">
+			<div class="mode-toggle">
+				<button class="mode-btn" class:active={drillMode === 'due'} onclick={() => drillMode = 'due'}>Due Only</button>
+				<button class="mode-btn" class:active={drillMode === 'all'} onclick={() => drillMode = 'all'}>Drill All</button>
+			</div>
 			<h3>Select variant to drill</h3>
 			<div class="variant-options">
 				<button class="variant-btn" onclick={() => startWithVariant()}>All Variants</button>
@@ -719,6 +724,33 @@
 		text-align: center;
 	}
 
+	.mode-toggle {
+		display: flex;
+		justify-content: center;
+		gap: 0;
+		margin-bottom: 1.25rem;
+		border: 1px solid var(--color-border);
+		border-radius: 6px;
+		overflow: hidden;
+		display: inline-flex;
+	}
+
+	.mode-btn {
+		padding: 0.5rem 1.25rem;
+		border: none;
+		background: var(--color-surface);
+		cursor: pointer;
+		font-size: 0.9rem;
+		color: var(--color-muted);
+		transition: background 0.15s, color 0.15s;
+	}
+
+	.mode-btn.active {
+		background: var(--color-primary);
+		color: white;
+		font-weight: 600;
+	}
+
 	.variant-selector h3 {
 		margin-bottom: 1rem;
 	}
@@ -792,6 +824,11 @@
 
 		.pgn-move {
 			padding: 0.3rem 0.5rem;
+		}
+
+		.mode-btn {
+			min-height: 44px;
+			padding: 0.6rem 1.25rem;
 		}
 
 		.variant-btn {

@@ -80,10 +80,11 @@ export const api = {
 		request<string[]>(`/api/repertoires/${repertoireId}/gaps`),
 
 	// Training
-	getNextBatch: (repertoireId: string, variant?: string, fromMoveId?: string) => {
+	getNextBatch: (repertoireId: string, variant?: string, fromMoveId?: string, mode?: 'due' | 'all') => {
 		const params = new URLSearchParams();
 		if (variant) params.set('variant', variant);
 		if (fromMoveId) params.set('from_move_id', fromMoveId);
+		if (mode && mode !== 'due') params.set('mode', mode);
 		const qs = params.toString();
 		return request<DrillBatch>(`/api/training/${repertoireId}/next${qs ? `?${qs}` : ''}`);
 	},

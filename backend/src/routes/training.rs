@@ -17,6 +17,7 @@ use crate::services::tree;
 pub struct DrillQuery {
     pub variant: Option<String>,
     pub from_move_id: Option<Uuid>,
+    pub mode: Option<String>,
 }
 
 #[derive(serde::Serialize)]
@@ -53,6 +54,8 @@ async fn next_batch(
     .ok_or_else(|| AppError::NotFound("Repertoire not found".into()))?;
 
     let is_white = rep_color == "white";
+    let drill_all = query.mode.as_deref() == Some("all");
+    let due_filter = if drill_all { "" } else { "AND rs.next_review <= NOW()" };
 
     // If variant filter requested, get descendant move IDs
     let variant_ids: Option<Vec<Uuid>> = if let Some(ref variant_name) = query.variant {
@@ -77,14 +80,16 @@ async fn next_batch(
     // Get due moves
     let due_moves = if let Some(ref ids) = variant_ids {
         sqlx::query_as::<_, MoveNode>(
-            r#"SELECT m.* FROM moves m
-               INNER JOIN review_state rs ON rs.move_id = m.id
-               WHERE m.repertoire_id = $1
-                 AND m.is_white_move = $2
-                 AND rs.next_review <= NOW()
-                 AND m.id = ANY($3)
-               ORDER BY rs.next_review ASC
-               LIMIT 20"#,
+            &format!(
+                r#"SELECT m.* FROM moves m
+                   INNER JOIN review_state rs ON rs.move_id = m.id
+                   WHERE m.repertoire_id = $1
+                     AND m.is_white_move = $2
+                     {due_filter}
+                     AND m.id = ANY($3)
+                   ORDER BY rs.next_review ASC
+                   LIMIT 20"#
+            ),
         )
         .bind(repertoire_id)
         .bind(is_white)
@@ -93,13 +98,15 @@ async fn next_batch(
         .await?
     } else {
         sqlx::query_as::<_, MoveNode>(
-            r#"SELECT m.* FROM moves m
-               INNER JOIN review_state rs ON rs.move_id = m.id
-               WHERE m.repertoire_id = $1
-                 AND m.is_white_move = $2
-                 AND rs.next_review <= NOW()
-               ORDER BY rs.next_review ASC
-               LIMIT 20"#,
+            &format!(
+                r#"SELECT m.* FROM moves m
+                   INNER JOIN review_state rs ON rs.move_id = m.id
+                   WHERE m.repertoire_id = $1
+                     AND m.is_white_move = $2
+                     {due_filter}
+                   ORDER BY rs.next_review ASC
+                   LIMIT 20"#
+            ),
         )
         .bind(repertoire_id)
         .bind(is_white)
@@ -109,12 +116,14 @@ async fn next_batch(
 
     let total_due: i64 = if let Some(ref ids) = variant_ids {
         sqlx::query_scalar(
-            r#"SELECT COUNT(*) FROM moves m
-               INNER JOIN review_state rs ON rs.move_id = m.id
-               WHERE m.repertoire_id = $1
-                 AND m.is_white_move = $2
-                 AND rs.next_review <= NOW()
-                 AND m.id = ANY($3)"#,
+            &format!(
+                r#"SELECT COUNT(*) FROM moves m
+                   INNER JOIN review_state rs ON rs.move_id = m.id
+                   WHERE m.repertoire_id = $1
+                     AND m.is_white_move = $2
+                     {due_filter}
+                     AND m.id = ANY($3)"#
+            ),
         )
         .bind(repertoire_id)
         .bind(is_white)
@@ -124,11 +133,13 @@ async fn next_batch(
         .unwrap_or(0)
     } else {
         sqlx::query_scalar(
-            r#"SELECT COUNT(*) FROM moves m
-               INNER JOIN review_state rs ON rs.move_id = m.id
-               WHERE m.repertoire_id = $1
-                 AND m.is_white_move = $2
-                 AND rs.next_review <= NOW()"#,
+            &format!(
+                r#"SELECT COUNT(*) FROM moves m
+                   INNER JOIN review_state rs ON rs.move_id = m.id
+                   WHERE m.repertoire_id = $1
+                     AND m.is_white_move = $2
+                     {due_filter}"#
+            ),
         )
         .bind(repertoire_id)
         .bind(is_white)
