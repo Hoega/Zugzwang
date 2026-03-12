@@ -11,6 +11,7 @@
 	import { toDests, turnColor, STARTING_FEN } from '$lib/utils/chess';
 	import type { Config } from 'chessground/config';
 	import ecoData from '$lib/data/eco.json';
+	import AddToRepertoireModal from '$lib/components/AddToRepertoireModal.svelte';
 
 	interface EcoOpening {
 		eco: string;
@@ -74,6 +75,7 @@
 	let engineLines = $state<MultiPvLine[]>([]);
 	let engine: Engine | null = null;
 	let engineReady = $state(false);
+	let showAddModal = $state(false);
 
 	onMount(() => {
 		engine = new Engine();
@@ -386,6 +388,7 @@
 				<div class="opening-info">
 					<div class="opening-eco">{selectedOpening.eco}</div>
 					<div class="opening-title">{openingName(selectedOpening)}</div>
+					<button class="add-btn" onclick={() => (showAddModal = true)}>Add to Repertoire</button>
 					<button class="back-btn" onclick={backToBrowsing}>Back to browsing</button>
 				</div>
 			{:else if browseHistory.length > 0}
@@ -435,6 +438,10 @@
 		</div>
 	</div>
 </div>
+
+{#if selectedOpening}
+	<AddToRepertoireModal bind:open={showAddModal} pgn={selectedOpening.pgn} openingName={openingName(selectedOpening)} />
+{/if}
 
 <style>
 	.openings-page {
@@ -641,6 +648,24 @@
 		font-weight: 600;
 		font-size: 0.9rem;
 		margin-top: 0.25rem;
+	}
+
+	.add-btn {
+		margin-top: 0.5rem;
+		width: 100%;
+		padding: 0.4rem;
+		background: var(--color-primary);
+		color: white;
+		border: none;
+		border-radius: 4px;
+		cursor: pointer;
+		font-size: 0.8rem;
+		font-weight: 600;
+		min-height: 44px;
+	}
+
+	.add-btn:hover {
+		opacity: 0.9;
 	}
 
 	.back-btn {
