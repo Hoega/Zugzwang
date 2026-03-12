@@ -18,6 +18,7 @@ struct RepertoireWithCounts {
     updated_at: chrono::DateTime<chrono::Utc>,
     move_count: i64,
     line_count: i64,
+    first_moves: Option<String>,
 }
 
 pub fn router() -> Router<PgPool> {
@@ -35,7 +36,10 @@ async fn list(State(pool): State<PgPool>) -> Result<Json<Vec<RepertoireWithCount
                   COUNT(m.id) AS move_count,
                   COUNT(m.id) FILTER (WHERE NOT EXISTS (
                       SELECT 1 FROM moves c WHERE c.parent_id = m.id
-                  )) AS line_count
+                  )) AS line_count,
+                  (SELECT STRING_AGG(DISTINCT m2.san_move, ',' ORDER BY m2.san_move)
+                   FROM moves m2 WHERE m2.repertoire_id = r.id AND m2.parent_id IS NULL
+                  ) AS first_moves
            FROM repertoires r
            LEFT JOIN moves m ON m.repertoire_id = r.id
            GROUP BY r.id

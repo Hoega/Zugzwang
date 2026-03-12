@@ -6,6 +6,7 @@ export interface Repertoire {
 	updated_at: string;
 	move_count?: number;
 	line_count?: number;
+	first_moves?: string | null;
 }
 
 export interface CreateRepertoire {

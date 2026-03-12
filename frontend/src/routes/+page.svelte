@@ -14,6 +14,34 @@
 	let exporting = $state(false);
 	let importing = $state(false);
 	let bundleError = $state<string | null>(null);
+	let filterColor = $state<'all' | 'white' | 'black'>('all');
+	let filterFirstMove = $state<string | null>(null);
+
+	let availableFirstMoves = $derived(() => {
+		const moves = new Set<string>();
+		for (const rep of repertoires) {
+			if (rep.first_moves) {
+				for (const m of rep.first_moves.split(',')) {
+					moves.add(m.trim());
+				}
+			}
+		}
+		return [...moves].sort();
+	});
+
+	let filtered = $derived(() => {
+		let result = repertoires;
+		if (filterColor !== 'all') {
+			result = result.filter((r) => r.color === filterColor);
+		}
+		if (filterFirstMove) {
+			result = result.filter((r) => {
+				if (!r.first_moves) return false;
+				return r.first_moves.split(',').map((m) => m.trim()).includes(filterFirstMove!);
+			});
+		}
+		return result;
+	});
 
 	onMount(async () => {
 		await loadRepertoires();
@@ -133,6 +161,46 @@
 		<p class="error">{bundleError}</p>
 	{/if}
 
+	{#if !loading && repertoires.length > 0}
+		<div class="filter-bar">
+			<div class="filter-group">
+				<span class="filter-label">Color</span>
+				<button
+					class="filter-chip"
+					class:active={filterColor === 'all'}
+					onclick={() => (filterColor = 'all')}
+				>All</button>
+				<button
+					class="filter-chip"
+					class:active={filterColor === 'white'}
+					onclick={() => (filterColor = 'white')}
+				>White</button>
+				<button
+					class="filter-chip"
+					class:active={filterColor === 'black'}
+					onclick={() => (filterColor = 'black')}
+				>Black</button>
+			</div>
+			{#if availableFirstMoves().length > 0}
+				<div class="filter-group">
+					<span class="filter-label">Opening</span>
+					<button
+						class="filter-chip"
+						class:active={filterFirstMove === null}
+						onclick={() => (filterFirstMove = null)}
+					>All</button>
+					{#each availableFirstMoves() as move}
+						<button
+							class="filter-chip"
+							class:active={filterFirstMove === move}
+							onclick={() => (filterFirstMove = filterFirstMove === move ? null : move)}
+						>{move}</button>
+					{/each}
+				</div>
+			{/if}
+		</div>
+	{/if}
+
 	{#if showCreate}
 		<form class="create-form" onsubmit={(e) => { e.preventDefault(); createRepertoire(); }}>
 			<input
@@ -154,9 +222,11 @@
 		<p class="muted">Loading...</p>
 	{:else if repertoires.length === 0}
 		<p class="muted">No repertoires yet. Create one to get started.</p>
+	{:else if filtered().length === 0}
+		<p class="muted">No repertoires match the current filters.</p>
 	{:else}
 		<div class="grid">
-			{#each repertoires as rep}
+			{#each filtered() as rep}
 				<div class="card">
 					<div class="card-header">
 						<span class="color-badge" class:white={rep.color === 'white'} class:black={rep.color === 'black'}>
@@ -216,6 +286,53 @@
 		padding: 0.5rem 1rem;
 		border-radius: 4px;
 		margin-bottom: 1rem;
+	}
+
+	.filter-bar {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1rem;
+		margin-bottom: 1.5rem;
+		padding: 0.75rem 1rem;
+		background: var(--color-surface);
+		border-radius: 8px;
+		border: 1px solid var(--color-border);
+	}
+
+	.filter-group {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+	}
+
+	.filter-label {
+		font-size: 0.8rem;
+		color: var(--color-muted);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.filter-chip {
+		padding: 0.35rem 0.75rem;
+		border-radius: 999px;
+		border: 1px solid var(--color-border);
+		background: transparent;
+		cursor: pointer;
+		font-size: 0.85rem;
+		color: var(--color-text);
+		min-height: 36px;
+	}
+
+	.filter-chip:hover {
+		background: var(--color-hover);
+	}
+
+	.filter-chip.active {
+		background: var(--color-primary);
+		color: white;
+		border-color: var(--color-primary);
 	}
 
 	.create-form {
@@ -363,6 +480,15 @@
 		.header-actions {
 			flex-wrap: wrap;
 			gap: 0.75rem;
+		}
+
+		.filter-bar {
+			gap: 0.75rem;
+		}
+
+		.filter-chip {
+			min-height: 44px;
+			padding: 0.5rem 1rem;
 		}
 
 		.create-form {
