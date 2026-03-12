@@ -7,6 +7,7 @@
 	import { api } from '$lib/stores/api';
 	import { Engine } from '$lib/utils/engine';
 	import { toDests, turnColor, STARTING_FEN } from '$lib/utils/chess';
+	import { lookupOpening } from '$lib/utils/eco';
 	import type { DrillPosition } from '$lib/types';
 	import type { Config } from 'chessground/config';
 	import type { DrawShape } from 'chessground/draw';
@@ -27,7 +28,7 @@
 	let variants = $state<string[]>([]);
 	let selectedVariant = $state<string | undefined>(undefined);
 	let fromMoveId = $state<string | undefined>(undefined);
-	let drillMode = $state<'due' | 'all'>('due');
+	let drillMode = $state<'due' | 'all'>('all');
 	let animating = $state(false);
 	let hadIncorrectAttempt = $state(false);
 	let hintSquare = $state<Key | null>(null);
@@ -51,6 +52,16 @@
 		if (!pos) return null;
 		for (const m of pos.line) {
 			if (m.variant_name) return m.variant_name;
+		}
+		return null;
+	});
+
+	let openingName = $derived.by(() => {
+		const pos = currentPosition;
+		if (!pos) return null;
+		for (let i = pos.line.length - 1; i >= 0; i--) {
+			const match = lookupOpening(pos.line[i].fen);
+			if (match) return `${match.eco}: ${match.name}`;
 		}
 		return null;
 	});
@@ -140,7 +151,7 @@
 
 			// Check for mode in URL params
 			const urlMode = $page.url.searchParams.get('mode');
-			if (urlMode === 'all') drillMode = 'all';
+			if (urlMode === 'due') drillMode = 'due';
 
 			// Check for from_move_id in URL params
 			const urlFromMoveId = $page.url.searchParams.get('from_move_id');
@@ -417,6 +428,9 @@
 	<div class="drill-layout" class:hidden={phase === 'selecting'}>
 		<div class="pgn-panel">
 			<h3>{repertoireName}{lineName ? ` — ${lineName}` : ''}</h3>
+			{#if openingName}
+				<p class="opening-name">{openingName}</p>
+			{/if}
 			<div class="pgn-rows">
 				{#each pgnRows as row}
 					<div class="pgn-row">
@@ -529,8 +543,15 @@
 	}
 
 	.pgn-panel h3 {
-		margin: 0 0 0.75rem;
+		margin: 0 0 0.25rem;
 		font-size: 0.95rem;
+	}
+
+	.opening-name {
+		margin: 0 0 0.75rem;
+		font-size: 0.8rem;
+		color: #9ca3af;
+		font-style: italic;
 	}
 
 	.pgn-rows {
