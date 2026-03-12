@@ -264,50 +264,83 @@
 		return result;
 	}
 
+	function goBack() {
+		if (!currentNodeId) return;
+		if (viewMode === 'lines') {
+			const lines = collectLines(tree);
+			const lineIdx = currentLineIndex != null && currentLineIndex < lines.length ? currentLineIndex : lines.findIndex(l => l.some(m => m.id === currentNodeId));
+			const line = lineIdx >= 0 ? lines[lineIdx] : null;
+			if (line) {
+				const idx = line.findIndex(m => m.id === currentNodeId);
+				if (idx > 0) navigateToNode(line[idx - 1], lineIdx);
+				else navigateToStart();
+			} else {
+				navigateToStart();
+			}
+		} else {
+			const parent = findParent(tree, currentNodeId);
+			if (parent) navigateToNode(parent);
+			else navigateToStart();
+		}
+	}
+
+	function goForward() {
+		if (viewMode === 'lines') {
+			const lines = collectLines(tree);
+			if (!currentNodeId) {
+				if (lines.length > 0 && lines[0].length > 0) navigateToNode(lines[0][0], 0);
+			} else {
+				const lineIdx = currentLineIndex != null && currentLineIndex < lines.length ? currentLineIndex : lines.findIndex(l => l.some(m => m.id === currentNodeId));
+				const line = lineIdx >= 0 ? lines[lineIdx] : null;
+				if (line) {
+					const idx = line.findIndex(m => m.id === currentNodeId);
+					if (idx < line.length - 1) navigateToNode(line[idx + 1], lineIdx);
+				}
+			}
+		} else {
+			if (!currentNodeId) {
+				if (tree.length > 0) navigateToNode(tree[0]);
+			} else {
+				const node = findNode(tree, currentNodeId);
+				if (node && node.children.length > 0) navigateToNode(node.children[0]);
+			}
+		}
+	}
+
+	function goToEnd() {
+		if (viewMode === 'lines') {
+			const lines = collectLines(tree);
+			if (lines.length === 0) return;
+			if (!currentNodeId) {
+				const line = lines[0];
+				if (line.length > 0) navigateToNode(line[line.length - 1], 0);
+			} else {
+				const lineIdx = currentLineIndex != null && currentLineIndex < lines.length ? currentLineIndex : lines.findIndex(l => l.some(m => m.id === currentNodeId));
+				const line = lineIdx >= 0 ? lines[lineIdx] : null;
+				if (line && line.length > 0) navigateToNode(line[line.length - 1], lineIdx);
+			}
+		} else {
+			let node: MoveTreeNode | null = currentNodeId ? findNode(tree, currentNodeId) : null;
+			if (!node) {
+				if (tree.length === 0) return;
+				node = tree[0];
+			}
+			while (node.children.length > 0) {
+				node = node.children[0];
+			}
+			navigateToNode(node);
+		}
+	}
+
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
 		if (e.key === 'ArrowLeft') {
 			e.preventDefault();
-			if (!currentNodeId) return;
-			if (viewMode === 'lines') {
-				const lines = collectLines(tree);
-				const lineIdx = currentLineIndex != null && currentLineIndex < lines.length ? currentLineIndex : lines.findIndex(l => l.some(m => m.id === currentNodeId));
-				const line = lineIdx >= 0 ? lines[lineIdx] : null;
-				if (line) {
-					const idx = line.findIndex(m => m.id === currentNodeId);
-					if (idx > 0) navigateToNode(line[idx - 1], lineIdx);
-					else navigateToStart();
-				} else {
-					navigateToStart();
-				}
-			} else {
-				const parent = findParent(tree, currentNodeId);
-				if (parent) navigateToNode(parent);
-				else navigateToStart();
-			}
+			goBack();
 		} else if (e.key === 'ArrowRight') {
 			e.preventDefault();
-			if (viewMode === 'lines') {
-				const lines = collectLines(tree);
-				if (!currentNodeId) {
-					if (lines.length > 0 && lines[0].length > 0) navigateToNode(lines[0][0], 0);
-				} else {
-					const lineIdx = currentLineIndex != null && currentLineIndex < lines.length ? currentLineIndex : lines.findIndex(l => l.some(m => m.id === currentNodeId));
-					const line = lineIdx >= 0 ? lines[lineIdx] : null;
-					if (line) {
-						const idx = line.findIndex(m => m.id === currentNodeId);
-						if (idx < line.length - 1) navigateToNode(line[idx + 1], lineIdx);
-					}
-				}
-			} else {
-				if (!currentNodeId) {
-					if (tree.length > 0) navigateToNode(tree[0]);
-				} else {
-					const node = findNode(tree, currentNodeId);
-					if (node && node.children.length > 0) navigateToNode(node.children[0]);
-				}
-			}
+			goForward();
 		}
 	}
 
@@ -401,6 +434,12 @@
 				<div class="board-with-eval">
 					<EvalBar score={evalScore} mate={evalMate} orientation={boardOrientation} />
 					<Board config={boardConfig} onMove={handleMove} shapes={allShapes} />
+				</div>
+				<div class="nav-buttons">
+					<button onclick={navigateToStart} title="Start">&laquo;</button>
+					<button onclick={goBack} title="Back">&lsaquo;</button>
+					<button onclick={goForward} title="Forward">&rsaquo;</button>
+					<button onclick={goToEnd} title="End">&raquo;</button>
 				</div>
 			</div>
 
@@ -557,7 +596,29 @@
 
 	.board-area {
 		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.nav-buttons {
+		display: flex;
 		justify-content: center;
+		gap: 0.25rem;
+		padding: 0.5rem 0;
+	}
+
+	.nav-buttons button {
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: 4px;
+		padding: 0.3rem 0.75rem;
+		cursor: pointer;
+		font-size: 1rem;
+		color: var(--color-text);
+	}
+
+	.nav-buttons button:hover {
+		background: var(--color-border);
 	}
 
 	.board-with-eval {
@@ -661,6 +722,11 @@
 		.sidebar-left,
 		.sidebar-right {
 			min-height: auto;
+		}
+
+		.nav-buttons button {
+			min-height: 44px;
+			padding: 0.5rem 1rem;
 		}
 
 		.delete-btn {
