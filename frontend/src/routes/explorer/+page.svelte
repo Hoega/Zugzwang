@@ -693,7 +693,7 @@
 		}
 
 		.toolbar-actions button {
-			min-height: 40px;
+			min-height: 44px;
 		}
 
 		.layout {
@@ -715,12 +715,18 @@
 
 		.move-btn {
 			padding: 0.4rem 0.6rem;
-			min-height: 36px;
+			min-height: 44px;
+		}
+
+		.nav-buttons {
+			gap: 0.5rem;
+			padding: 0.75rem;
 		}
 
 		.nav-buttons button {
 			min-height: 44px;
 			min-width: 44px;
+			padding: 0.4rem 1rem;
 		}
 	}
 </style>

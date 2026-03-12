@@ -362,6 +362,7 @@
 
 		.header-actions {
 			flex-wrap: wrap;
+			gap: 0.75rem;
 		}
 
 		.create-form {
@@ -376,6 +377,12 @@
 
 		.card-actions {
 			width: 100%;
+			gap: 0.75rem;
+		}
+
+		.card-actions .btn,
+		.card-actions button {
+			flex: 1;
 		}
 
 		.card-actions .btn,

@@ -633,12 +633,17 @@
 
 		.toolbar-actions {
 			flex-wrap: wrap;
+			gap: 0.75rem;
 		}
 
 		.toolbar-actions button,
 		.toolbar-actions .btn {
-			min-height: 40px;
+			min-height: 44px;
 			padding: 0.5rem 0.75rem;
+		}
+
+		.view-toggle button {
+			padding: 0.4rem 0.75rem;
 		}
 
 		.layout {

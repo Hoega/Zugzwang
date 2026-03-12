@@ -60,6 +60,7 @@ Monorepo with a Rust/Axum backend (`backend/`) and SvelteKit 5 frontend (`fronte
 
 ### Frontend
 
+- **Mobile-first is important** — this app is frequently used on phones/tablets. All new UI must be touch-friendly (min 44px tap targets for primary actions, 36px for secondary). Use `@media (max-width: 768px)` breakpoint. Avoid hover-only interactions; ensure controls are visible/tappable without hover.
 - **SvelteKit 5 with runes** (`$state`, `$derived`, `$effect`, `$props`) — do NOT use legacy `export let` or `$:` syntax
 - **chessground** for board rendering (initialized in `onMount`, updated via `$effect`)
 - **chess.js** only for client-side legal move hints (`toDests()` in `utils/chess.ts`) — never as FEN authority
