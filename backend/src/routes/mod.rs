@@ -4,11 +4,14 @@ pub mod training;
 pub mod pgn;
 pub mod stats;
 pub mod bundle;
+pub mod explorer;
 
 use axum::Router;
 use sqlx::PgPool;
 
-pub fn create_router(pool: PgPool) -> Router {
+use explorer::ExplorerState;
+
+pub fn create_router(pool: PgPool, explorer_state: ExplorerState) -> Router {
     Router::new()
         .merge(repertoires::router())
         .merge(moves::router())
@@ -17,4 +20,5 @@ pub fn create_router(pool: PgPool) -> Router {
         .merge(stats::router())
         .merge(bundle::router())
         .with_state(pool)
+        .merge(explorer::router().with_state(explorer_state))
 }

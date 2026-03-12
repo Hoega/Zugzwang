@@ -5,6 +5,7 @@ mod models;
 mod routes;
 mod services;
 
+use routes::explorer::ExplorerState;
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::EnvFilter;
 
@@ -20,12 +21,17 @@ async fn main() {
     let pool = db::create_pool(&config.database_url).await;
     db::run_migrations(&pool).await;
 
+    let explorer_state = ExplorerState {
+        client: reqwest::Client::new(),
+        lichess_token: config.lichess_api_token,
+    };
+
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
         .allow_headers(Any);
 
-    let app = routes::create_router(pool).layer(cors);
+    let app = routes::create_router(pool, explorer_state).layer(cors);
 
     let addr = format!("{}:{}", config.host, config.port);
     tracing::info!("Starting server on {addr}");

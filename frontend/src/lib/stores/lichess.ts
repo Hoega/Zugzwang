@@ -50,14 +50,13 @@ export async function fetchExplorer(
 	const encodedFen = encodeURIComponent(fen);
 	let url: string;
 	if (db === 'masters') {
-		url = `https://explorer.lichess.ovh/masters?fen=${encodedFen}`;
+		url = `/api/explorer/masters?fen=${encodedFen}`;
 	} else {
-		url = `https://explorer.lichess.ovh/lichess?fen=${encodedFen}&ratings=2200,2500&speeds=blitz,rapid,classical`;
+		url = `/api/explorer/lichess?fen=${encodedFen}&ratings=2200,2500&speeds=blitz,rapid,classical`;
 	}
 
 	const response = await fetch(url, {
-		signal: abortController.signal,
-		headers: { 'Accept': 'application/json' }
+		signal: abortController.signal
 	});
 	if (!response.ok) {
 		throw new Error(`Lichess API error: ${response.status}`);

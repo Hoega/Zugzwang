@@ -4,6 +4,7 @@ pub struct Config {
     pub database_url: String,
     pub host: String,
     pub port: u16,
+    pub lichess_api_token: Option<String>,
 }
 
 impl Config {
@@ -17,6 +18,7 @@ impl Config {
                 .ok()
                 .and_then(|p| p.parse().ok())
                 .unwrap_or(3000),
+            lichess_api_token: env::var("LICHESS_API_TOKEN").ok(),
         }
     }
 }
