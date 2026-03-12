@@ -770,4 +770,55 @@
 		border-radius: 3px;
 		font-size: 0.7rem;
 	}
+
+	@media (max-width: 768px) {
+		.toolbar {
+			flex-wrap: wrap;
+			gap: 0.5rem;
+		}
+
+		.toolbar-actions {
+			flex-wrap: wrap;
+			gap: 0.75rem;
+		}
+
+		.toolbar-actions button,
+		.toolbar-actions .btn {
+			min-height: 44px;
+			padding: 0.5rem 0.75rem;
+		}
+
+		.layout {
+			grid-template-columns: 1fr;
+		}
+
+		.board-area {
+			order: -1;
+		}
+
+		.board-with-eval {
+			max-width: 100%;
+		}
+
+		.sidebar-left,
+		.sidebar-right {
+			min-height: auto;
+		}
+
+		.move-btn {
+			padding: 0.4rem 0.6rem;
+			min-height: 44px;
+		}
+
+		.nav-buttons {
+			gap: 0.5rem;
+			padding: 0.75rem;
+		}
+
+		.nav-buttons button {
+			min-height: 44px;
+			min-width: 44px;
+			padding: 0.4rem 1rem;
+		}
+	}
 </style>
