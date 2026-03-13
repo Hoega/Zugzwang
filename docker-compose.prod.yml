@@ -15,6 +15,7 @@ services:
     depends_on: [db]
     environment:
       ZUGZWANG_DATABASE_URL: postgres://zugzwang:${POSTGRES_PASSWORD}@db:5432/zugzwang
+      LICHESS_API_TOKEN: ${LICHESS_API_TOKEN}
     ports:
       - "127.0.0.1:3000:3000"
 
