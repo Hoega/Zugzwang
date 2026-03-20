@@ -16,8 +16,15 @@ pub fn router() -> Router<PgPool> {
 }
 
 #[derive(serde::Deserialize)]
-struct AuthRequest {
+struct LoginRequest {
     username: String,
+    password: String,
+}
+
+#[derive(serde::Deserialize)]
+struct RegisterRequest {
+    username: String,
+    email: String,
     password: String,
 }
 
@@ -51,22 +58,30 @@ fn clear_session_cookie(cookies: &Cookies) {
 async fn register(
     State(pool): State<PgPool>,
     cookies: Cookies,
-    Json(input): Json<AuthRequest>,
+    Json(input): Json<RegisterRequest>,
 ) -> Result<Json<AuthResponse>, AppError> {
-    // Validate
+    // Validate username
     let username = input.username.trim().to_string();
     if username.len() < 3 || username.len() > 32 {
         return Err(AppError::Validation(
             "Username must be 3-32 characters".into(),
         ));
     }
+
+    // Validate email
+    let email = input.email.trim().to_lowercase();
+    if !email.contains('@') || !email.contains('.') || email.len() < 5 {
+        return Err(AppError::Validation("Invalid email address".into()));
+    }
+
+    // Validate password
     if input.password.len() < 8 {
         return Err(AppError::Validation(
             "Password must be at least 8 characters".into(),
         ));
     }
 
-    // Check uniqueness
+    // Check username uniqueness
     let exists: bool =
         sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)")
             .bind(&username)
@@ -76,14 +91,25 @@ async fn register(
         return Err(AppError::Validation("Username already taken".into()));
     }
 
+    // Check email uniqueness
+    let email_exists: bool =
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)")
+            .bind(&email)
+            .fetch_one(&pool)
+            .await?;
+    if email_exists {
+        return Err(AppError::Validation("Email already registered".into()));
+    }
+
     let password_hash = auth::hash_password(&input.password)?;
     let user_id = Uuid::new_v4();
 
     sqlx::query(
-        "INSERT INTO users (id, username, password_hash, created_at) VALUES ($1, $2, $3, NOW())",
+        "INSERT INTO users (id, username, email, password_hash, created_at) VALUES ($1, $2, $3, $4, NOW())",
     )
     .bind(user_id)
     .bind(&username)
+    .bind(&email)
     .bind(&password_hash)
     .execute(&pool)
     .await?;
@@ -102,7 +128,7 @@ async fn register(
 async fn login(
     State(pool): State<PgPool>,
     cookies: Cookies,
-    Json(input): Json<AuthRequest>,
+    Json(input): Json<LoginRequest>,
 ) -> Result<Json<AuthResponse>, AppError> {
     let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE username = $1")
         .bind(&input.username)

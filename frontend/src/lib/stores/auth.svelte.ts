@@ -31,8 +31,8 @@ export const auth = {
 		user = res.user;
 	},
 
-	async register(username: string, password: string) {
-		const res = await api.register({ username, password });
+	async register(username: string, email: string, password: string) {
+		const res = await api.register({ username, email, password });
 		user = res.user;
 	},
 

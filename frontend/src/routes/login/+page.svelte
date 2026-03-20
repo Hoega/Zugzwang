@@ -4,20 +4,28 @@
 
 	let mode = $state<'login' | 'register'>('login');
 	let username = $state('');
+	let email = $state('');
 	let password = $state('');
+	let confirmPassword = $state('');
 	let error = $state('');
 	let loading = $state(false);
 
 	async function handleSubmit(e: Event) {
 		e.preventDefault();
 		error = '';
+
+		if (mode === 'register' && password !== confirmPassword) {
+			error = 'Passwords do not match';
+			return;
+		}
+
 		loading = true;
 
 		try {
 			if (mode === 'login') {
 				await auth.login(username, password);
 			} else {
-				await auth.register(username, password);
+				await auth.register(username, email, password);
 			}
 			goto('/');
 		} catch (err: any) {
@@ -59,6 +67,18 @@
 				/>
 			</label>
 
+			{#if mode === 'register'}
+				<label class="field">
+					<span>Email</span>
+					<input
+						type="email"
+						bind:value={email}
+						autocomplete="email"
+						required
+					/>
+				</label>
+			{/if}
+
 			<label class="field">
 				<span>Password</span>
 				<input
@@ -69,6 +89,19 @@
 					required
 				/>
 			</label>
+
+			{#if mode === 'register'}
+				<label class="field">
+					<span>Confirm Password</span>
+					<input
+						type="password"
+						bind:value={confirmPassword}
+						autocomplete="new-password"
+						minlength={8}
+						required
+					/>
+				</label>
+			{/if}
 
 			{#if error}
 				<p class="error">{error}</p>

@@ -13,7 +13,8 @@ import type {
 	TranspositionGroup,
 	BundleExport,
 	AuthResponse,
-	LoginRequest
+	LoginRequest,
+	RegisterRequest
 } from '$lib/types';
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -134,7 +135,7 @@ export const api = {
 			body: JSON.stringify(data)
 		}),
 
-	register: (data: LoginRequest) =>
+	register: (data: RegisterRequest) =>
 		request<AuthResponse>('/api/auth/register', {
 			method: 'POST',
 			body: JSON.stringify(data)
