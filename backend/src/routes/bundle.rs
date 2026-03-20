@@ -78,6 +78,56 @@ async fn export_bundle(
     }))
 }
 
+fn toposort_moves(moves: &[BundleMove], rep_name: &str) -> Result<Vec<usize>, AppError> {
+    use std::collections::VecDeque;
+
+    let n = moves.len();
+    // Build children lists and in-degree counts
+    let mut children: Vec<Vec<usize>> = vec![vec![]; n];
+    let mut in_degree: Vec<usize> = vec![0; n];
+
+    for (i, m) in moves.iter().enumerate() {
+        if let Some(parent) = m.parent_index {
+            if parent >= n {
+                return Err(AppError::Validation(format!(
+                    "Move at index {} references out-of-bounds parent {} in repertoire '{}'",
+                    i, parent, rep_name
+                )));
+            }
+            children[parent].push(i);
+            in_degree[i] = 1;
+        }
+    }
+
+    // BFS from roots
+    let mut queue: VecDeque<usize> = VecDeque::new();
+    for i in 0..n {
+        if in_degree[i] == 0 {
+            queue.push_back(i);
+        }
+    }
+
+    let mut order = Vec::with_capacity(n);
+    while let Some(idx) = queue.pop_front() {
+        order.push(idx);
+        for &child in &children[idx] {
+            in_degree[child] -= 1;
+            if in_degree[child] == 0 {
+                queue.push_back(child);
+            }
+        }
+    }
+
+    if order.len() != n {
+        return Err(AppError::Validation(format!(
+            "Cycle detected in move tree for repertoire '{}'",
+            rep_name
+        )));
+    }
+
+    Ok(order)
+}
+
 async fn import_bundle(
     State(pool): State<PgPool>,
     auth: AuthUser,
@@ -114,20 +164,21 @@ async fn import_bundle(
         .execute(&mut *tx)
         .await?;
 
-        // Map from array index to inserted UUID
-        let mut index_to_uuid: Vec<Uuid> = Vec::with_capacity(rep.moves.len());
+        // Topologically sort moves so parents are inserted before children
+        let sorted_indices = toposort_moves(&rep.moves, &rep.name)?;
 
-        for (i, bundle_move) in rep.moves.iter().enumerate() {
+        // Map from original array index to inserted UUID
+        let mut index_to_uuid: HashMap<usize, Uuid> = HashMap::with_capacity(rep.moves.len());
+
+        for &i in &sorted_indices {
+            let bundle_move = &rep.moves[i];
             let parent_id = match bundle_move.parent_index {
-                Some(idx) => {
-                    if idx >= i {
-                        return Err(AppError::Validation(format!(
-                            "Move at index {} has forward parent_index {} in repertoire '{}'",
-                            i, idx, rep.name
-                        )));
-                    }
-                    Some(index_to_uuid[idx])
-                }
+                Some(idx) => Some(*index_to_uuid.get(&idx).ok_or_else(|| {
+                    AppError::Validation(format!(
+                        "Move at index {} references missing parent {} in repertoire '{}'",
+                        i, idx, rep.name
+                    ))
+                })?),
                 None => None,
             };
 
@@ -169,7 +220,7 @@ async fn import_bundle(
                 .await?;
             }
 
-            index_to_uuid.push(move_id);
+            index_to_uuid.insert(i, move_id);
         }
 
         tx.commit().await?;
