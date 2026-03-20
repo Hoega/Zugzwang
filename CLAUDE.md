@@ -18,6 +18,7 @@ task backend:build      # Build backend
 task frontend:run       # Run frontend dev server
 task frontend:build     # Build frontend for production
 task deploy:vps         # Deploy to production VPS (pull, rebuild, restart)
+task deploy:restart     # Restart production containers without rebuilding
 task deploy:quick       # Git add all, commit, and deploy (optional message: task deploy:quick -- "msg")
 ```
 
@@ -45,9 +46,10 @@ Monorepo with a Rust/Axum backend (`backend/`) and SvelteKit 5 frontend (`fronte
 
 - **Axum 0.8** REST API with `PgPool` as shared state
 - **sqlx 0.8** with auto-migrations from `backend/migrations/` on startup
-- **Route modules** (`routes/`): `repertoires`, `moves`, `training`, `pgn`, `stats` — each exports a `router() -> Router<PgPool>` merged in `routes/mod.rs`
+- **Route modules** (`routes/`): `auth`, `repertoires`, `moves`, `training`, `pgn`, `stats`, `bundle`, `explorer` — each exports a `router()` merged in `routes/mod.rs`
 - **Handler pattern**: all handlers return `Result<Json<T>, AppError>` where `AppError` (in `error.rs`) implements `IntoResponse` with proper HTTP status codes
-- **Models** (`models/`): `Repertoire`, `MoveNode`, `MoveTreeNode`, `ReviewState` — derive `sqlx::FromRow` and `Serialize`
+- **Authentication** (`auth.rs`): Argon2id password hashing, session tokens (32-byte random, base64, 30-day expiry) stored in DB, `AuthUser` extractor reads `session` cookie via `tower-cookies`. All routes except `/api/auth/*` and `/api/explorer/*` require `AuthUser`. Use `verify_ownership(pool, repertoire_id, user_id)` helper before accessing any repertoire.
+- **Models** (`models/`): `User`, `Repertoire`, `MoveNode`, `MoveTreeNode`, `ReviewState` — derive `sqlx::FromRow` and `Serialize`
 - **Services** (`services/`):
   - `validation.rs` — **shakmaty is the single source of truth for FEN**. `validate_move(fen, uci)` parses position, validates the move, returns canonical resulting FEN + SAN. The frontend must use the backend-returned FEN for subsequent API calls.
   - `tree.rs` — recursive CTE queries for move trees (adjacency list with `parent_id`), `build_tree()` converts flat rows to nested `MoveTreeNode`
@@ -56,7 +58,7 @@ Monorepo with a Rust/Axum backend (`backend/`) and SvelteKit 5 frontend (`fronte
 
 ### Database Schema
 
-4 tables: `repertoires` → `moves` (self-referencing adjacency list via `parent_id`) → `review_state` (1:1 with user-color moves) + `review_log` (every drill attempt). Cascading deletes throughout.
+6 tables: `users` → `sessions` (auth), `users` → `repertoires` → `moves` (self-referencing adjacency list via `parent_id`) → `review_state` (1:1 with user-color moves) + `review_log` (every drill attempt). Cascading deletes throughout. All repertoires are scoped to a user via `user_id`.
 
 ### Frontend
 
@@ -64,10 +66,11 @@ Monorepo with a Rust/Axum backend (`backend/`) and SvelteKit 5 frontend (`fronte
 - **SvelteKit 5 with runes** (`$state`, `$derived`, `$effect`, `$props`) — do NOT use legacy `export let` or `$:` syntax
 - **chessground** for board rendering (initialized in `onMount`, updated via `$effect`)
 - **chess.js** only for client-side legal move hints (`toDests()` in `utils/chess.ts`) — never as FEN authority
-- **Stores** (`stores/`): `api.ts` (typed fetch wrapper for all endpoints), `game.ts`, `repertoire.ts`, `drill.ts`, `lichess.ts` (Lichess explorer API with caching/debounce)
+- **Stores** (`stores/`): `api.ts` (typed fetch wrapper for all endpoints, 401 → redirect to `/login`), `auth.svelte.ts` (reactive auth state), `game.ts`, `repertoire.ts`, `drill.ts`, `lichess.ts` (Lichess explorer API with caching/debounce)
 - **Utils** (`utils/`): `chess.ts` (legal move dests via chess.js), `engine.ts` (`Engine` class wrapping Stockfish WASM worker with multi-PV support), `shapes.ts` (chessground arrow rendering for engine lines)
 - **Data**: `data/eco.json` — ECO opening classification lookup
-- **Pages**: home (`/`), builder (`/repertoire/[id]`), drill (`/train/[id]`), dashboard (`/dashboard`), explorer (`/explorer`), openings browser (`/openings`, `/openings/explorer`)
+- **Pages**: login (`/login`), home (`/`), builder (`/repertoire/[id]`), drill (`/train/[id]`), dashboard (`/dashboard`), explorer (`/explorer`), openings browser (`/openings`, `/openings/explorer`)
+- **Auth guard**: `+layout.svelte` checks `auth.check()` on mount, redirects to `/login` if unauthenticated (skipped for `/login` itself)
 - **Stockfish**: WASM engine in `static/` (stockfish.js, stockfish.wasm, stockfish-worker.js) — worker loaded via `new Worker('/stockfish-worker.js#/stockfish.wasm')`. First load compiles WASM (~15-20s). Engine init is non-blocking with `engineReady` state flag.
 
 ### External APIs
@@ -82,6 +85,10 @@ The backend (shakmaty) is the canonical FEN source. When a move is added, the ba
 
 | Path | Methods | Purpose |
 |------|---------|---------|
+| `/api/auth/register` | POST | Register (username, email, password) → set session cookie |
+| `/api/auth/login` | POST | Login (username, password) → set session cookie |
+| `/api/auth/logout` | POST | Delete session, clear cookie |
+| `/api/auth/me` | GET | Current user info (or 401) |
 | `/api/repertoires` | GET, POST | List/create repertoires |
 | `/api/repertoires/:id` | GET, PUT, DELETE | Single repertoire CRUD |
 | `/api/repertoires/:id/moves` | GET, POST | Get move tree / add move |

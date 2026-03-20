@@ -85,6 +85,18 @@ tasks:
           trap "kill $BACKEND_PID $FRONTEND_PID 2>/dev/null" EXIT
           wait
 
+  deploy:restart:
+    desc: Restart production containers (pull latest, rebuild, restart)
+    cmds:
+      - |
+        ssh -i ~/.ssh/vps_frouxel root@srv1335537.hstgr.cloud '
+          set -e &&
+          cd /root/Zugzwang &&
+          git pull &&
+          docker compose -f docker-compose.prod.yml up -d --force-recreate
+        '
+      - echo "Restarted production containers"
+
   deploy:quick:
     desc: Git add all, commit with message, and deploy to VPS
     cmds:
