@@ -6,6 +6,7 @@ use axum::{
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use crate::auth::{verify_ownership, AuthUser};
 use crate::error::AppError;
 use crate::models::chess_move::{CreateMove, MoveNode, MoveTreeNode, UpdateMove};
 use crate::services::tree;
@@ -37,8 +38,10 @@ pub fn router() -> Router<PgPool> {
 
 async fn get_tree(
     State(pool): State<PgPool>,
+    auth: AuthUser,
     Path(id): Path<Uuid>,
 ) -> Result<Json<Vec<MoveTreeNode>>, AppError> {
+    verify_ownership(&pool, id, auth.user_id).await?;
     let flat = tree::get_flat_moves(&pool, id).await?;
     let tree = tree::build_tree(flat);
     Ok(Json(tree))
@@ -46,9 +49,12 @@ async fn get_tree(
 
 async fn add_move(
     State(pool): State<PgPool>,
+    auth: AuthUser,
     Path(repertoire_id): Path<Uuid>,
     Json(input): Json<CreateMove>,
 ) -> Result<Json<MoveNode>, AppError> {
+    verify_ownership(&pool, repertoire_id, auth.user_id).await?;
+
     // Validate the move using shakmaty
     let result = validation::validate_move(&input.fen, &input.uci_move)?;
 
@@ -123,9 +129,12 @@ async fn add_move(
 
 async fn update_move(
     State(pool): State<PgPool>,
-    Path((_rep_id, move_id)): Path<(Uuid, Uuid)>,
+    auth: AuthUser,
+    Path((rep_id, move_id)): Path<(Uuid, Uuid)>,
     Json(input): Json<UpdateMove>,
 ) -> Result<Json<MoveNode>, AppError> {
+    verify_ownership(&pool, rep_id, auth.user_id).await?;
+
     // For variant_name: None means "don't change", Some("") means "clear it",
     // Some(name) means "set it"
     let variant_name = input.variant_name.as_deref().map(|v| {
@@ -155,8 +164,11 @@ async fn update_move(
 
 async fn delete_move(
     State(pool): State<PgPool>,
-    Path((_rep_id, move_id)): Path<(Uuid, Uuid)>,
+    auth: AuthUser,
+    Path((rep_id, move_id)): Path<(Uuid, Uuid)>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    verify_ownership(&pool, rep_id, auth.user_id).await?;
+
     // Delete subtree using recursive CTE
     sqlx::query(
         r#"
@@ -176,8 +188,10 @@ async fn delete_move(
 
 async fn get_variants(
     State(pool): State<PgPool>,
+    auth: AuthUser,
     Path(id): Path<Uuid>,
 ) -> Result<Json<Vec<String>>, AppError> {
+    verify_ownership(&pool, id, auth.user_id).await?;
     let names = tree::get_variant_names(&pool, id).await?;
     Ok(Json(names))
 }
@@ -190,8 +204,11 @@ struct TranspositionGroup {
 
 async fn get_transpositions(
     State(pool): State<PgPool>,
+    auth: AuthUser,
     Path(id): Path<Uuid>,
 ) -> Result<Json<Vec<TranspositionGroup>>, AppError> {
+    verify_ownership(&pool, id, auth.user_id).await?;
+
     let rows: Vec<(String, Vec<Uuid>)> = sqlx::query_as(
         r#"SELECT fen, array_agg(id) as move_ids
            FROM moves WHERE repertoire_id = $1
@@ -210,8 +227,11 @@ async fn get_transpositions(
 
 async fn get_gaps(
     State(pool): State<PgPool>,
+    auth: AuthUser,
     Path(id): Path<Uuid>,
 ) -> Result<Json<Vec<Uuid>>, AppError> {
+    verify_ownership(&pool, id, auth.user_id).await?;
+
     let rep_color: String = sqlx::query_scalar(
         "SELECT color FROM repertoires WHERE id = $1",
     )

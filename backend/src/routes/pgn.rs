@@ -6,6 +6,7 @@ use axum::{
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use crate::auth::{verify_ownership, AuthUser};
 use crate::error::AppError;
 use crate::services::tree;
 
@@ -27,17 +28,21 @@ pub struct PgnExport {
 
 async fn import_pgn(
     State(pool): State<PgPool>,
+    auth: AuthUser,
     Path(repertoire_id): Path<Uuid>,
     Json(input): Json<PgnImport>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    verify_ownership(&pool, repertoire_id, auth.user_id).await?;
     let count = crate::services::pgn::import_pgn(&pool, repertoire_id, &input.pgn).await?;
     Ok(Json(serde_json::json!({ "imported_moves": count })))
 }
 
 async fn export_pgn(
     State(pool): State<PgPool>,
+    auth: AuthUser,
     Path(repertoire_id): Path<Uuid>,
 ) -> Result<Json<PgnExport>, AppError> {
+    verify_ownership(&pool, repertoire_id, auth.user_id).await?;
     let flat = tree::get_flat_moves(&pool, repertoire_id).await?;
     let tree = tree::build_tree(flat);
     let pgn = crate::services::pgn::export_pgn(&tree);

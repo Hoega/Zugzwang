@@ -11,7 +11,9 @@ import type {
 	RepertoireStats,
 	HeatmapEntry,
 	TranspositionGroup,
-	BundleExport
+	BundleExport,
+	AuthResponse,
+	LoginRequest
 } from '$lib/types';
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -20,6 +22,10 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 		...options
 	});
 	if (!res.ok) {
+		if (res.status === 401 && !url.includes('/api/auth/')) {
+			window.location.href = '/login';
+			throw new Error('Unauthorized');
+		}
 		const body = await res.json().catch(() => ({ error: res.statusText }));
 		throw new Error(body.error || res.statusText);
 	}
@@ -119,5 +125,23 @@ export const api = {
 		request<{ imported_repertoires: number; imported_moves: number }>('/api/bundle/import', {
 			method: 'POST',
 			body: JSON.stringify(data)
-		})
+		}),
+
+	// Auth
+	login: (data: LoginRequest) =>
+		request<AuthResponse>('/api/auth/login', {
+			method: 'POST',
+			body: JSON.stringify(data)
+		}),
+
+	register: (data: LoginRequest) =>
+		request<AuthResponse>('/api/auth/register', {
+			method: 'POST',
+			body: JSON.stringify(data)
+		}),
+
+	logout: () =>
+		request<{ ok: boolean }>('/api/auth/logout', { method: 'POST' }),
+
+	getMe: () => request<AuthResponse>('/api/auth/me')
 };

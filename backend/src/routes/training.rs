@@ -7,6 +7,7 @@ use chrono::Utc;
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use crate::auth::{verify_ownership, AuthUser};
 use crate::error::AppError;
 use crate::models::chess_move::MoveNode;
 use crate::models::review::{ReviewState, ReviewSubmission};
@@ -41,9 +42,12 @@ pub fn router() -> Router<PgPool> {
 
 async fn next_batch(
     State(pool): State<PgPool>,
+    auth: AuthUser,
     Path(repertoire_id): Path<Uuid>,
     Query(query): Query<DrillQuery>,
 ) -> Result<Json<DrillBatch>, AppError> {
+    verify_ownership(&pool, repertoire_id, auth.user_id).await?;
+
     // Get repertoire color
     let rep_color: String = sqlx::query_scalar(
         "SELECT color FROM repertoires WHERE id = $1",
@@ -181,8 +185,21 @@ async fn next_batch(
 
 async fn submit_review(
     State(pool): State<PgPool>,
+    auth: AuthUser,
     Json(input): Json<ReviewSubmission>,
 ) -> Result<Json<ReviewState>, AppError> {
+    // Verify the move belongs to a repertoire owned by this user
+    let _rep_id: Uuid = sqlx::query_scalar(
+        r#"SELECT r.id FROM repertoires r
+           INNER JOIN moves m ON m.repertoire_id = r.id
+           WHERE m.id = $1 AND r.user_id = $2"#,
+    )
+    .bind(input.move_id)
+    .bind(auth.user_id)
+    .fetch_optional(&pool)
+    .await?
+    .ok_or_else(|| AppError::NotFound("Move not found".into()))?;
+
     let state = sqlx::query_as::<_, ReviewState>(
         "SELECT * FROM review_state WHERE move_id = $1",
     )

@@ -7,6 +7,8 @@ pub struct Repertoire {
     pub id: Uuid,
     pub name: String,
     pub color: String,
+    #[serde(skip_serializing)]
+    pub user_id: Uuid,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }

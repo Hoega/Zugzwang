@@ -1,3 +1,4 @@
+pub mod auth;
 pub mod repertoires;
 pub mod moves;
 pub mod training;
@@ -13,6 +14,7 @@ use explorer::ExplorerState;
 
 pub fn create_router(pool: PgPool, explorer_state: ExplorerState) -> Router {
     Router::new()
+        .merge(auth::router())
         .merge(repertoires::router())
         .merge(moves::router())
         .merge(training::router())

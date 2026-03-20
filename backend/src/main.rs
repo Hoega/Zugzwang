@@ -1,3 +1,4 @@
+mod auth;
 mod config;
 mod db;
 mod error;
@@ -6,6 +7,7 @@ mod routes;
 mod services;
 
 use routes::explorer::ExplorerState;
+use tower_cookies::CookieManagerLayer;
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::EnvFilter;
 
@@ -31,7 +33,9 @@ async fn main() {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    let app = routes::create_router(pool, explorer_state).layer(cors);
+    let app = routes::create_router(pool, explorer_state)
+        .layer(cors)
+        .layer(CookieManagerLayer::new());
 
     let addr = format!("{}:{}", config.host, config.port);
     tracing::info!("Starting server on {addr}");

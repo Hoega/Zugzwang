@@ -7,6 +7,7 @@ use sqlx::PgPool;
 use std::collections::HashMap;
 use uuid::Uuid;
 
+use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::bundle::{BundleExport, BundleMove, BundleRepertoire};
 use crate::models::chess_move::MoveNode;
@@ -20,10 +21,12 @@ pub fn router() -> Router<PgPool> {
 
 async fn export_bundle(
     State(pool): State<PgPool>,
+    auth: AuthUser,
 ) -> Result<Json<BundleExport>, AppError> {
     let repertoires = sqlx::query_as::<_, Repertoire>(
-        "SELECT * FROM repertoires ORDER BY created_at",
+        "SELECT * FROM repertoires WHERE user_id = $1 ORDER BY created_at",
     )
+    .bind(auth.user_id)
     .fetch_all(&pool)
     .await?;
 
@@ -77,6 +80,7 @@ async fn export_bundle(
 
 async fn import_bundle(
     State(pool): State<PgPool>,
+    auth: AuthUser,
     Json(bundle): Json<BundleExport>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     if bundle.version != 1 {
@@ -101,11 +105,12 @@ async fn import_bundle(
 
         let repertoire_id = Uuid::new_v4();
         sqlx::query(
-            "INSERT INTO repertoires (id, name, color, created_at, updated_at) VALUES ($1, $2, $3, NOW(), NOW())",
+            "INSERT INTO repertoires (id, name, color, user_id, created_at, updated_at) VALUES ($1, $2, $3, $4, NOW(), NOW())",
         )
         .bind(repertoire_id)
         .bind(&rep.name)
         .bind(&rep.color)
+        .bind(auth.user_id)
         .execute(&mut *tx)
         .await?;
 

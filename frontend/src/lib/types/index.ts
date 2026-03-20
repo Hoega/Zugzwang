@@ -119,3 +119,17 @@ export interface BundleExport {
 	exported_at: string;
 	repertoires: BundleRepertoire[];
 }
+
+export interface AuthUser {
+	id: string;
+	username: string;
+}
+
+export interface AuthResponse {
+	user: AuthUser;
+}
+
+export interface LoginRequest {
+	username: string;
+	password: string;
+}

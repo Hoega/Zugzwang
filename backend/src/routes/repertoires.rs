@@ -6,6 +6,7 @@ use axum::{
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::repertoire::{CreateRepertoire, Repertoire, UpdateRepertoire};
 
@@ -30,7 +31,10 @@ pub fn router() -> Router<PgPool> {
         )
 }
 
-async fn list(State(pool): State<PgPool>) -> Result<Json<Vec<RepertoireWithCounts>>, AppError> {
+async fn list(
+    State(pool): State<PgPool>,
+    auth: AuthUser,
+) -> Result<Json<Vec<RepertoireWithCounts>>, AppError> {
     let repertoires = sqlx::query_as::<_, RepertoireWithCounts>(
         r#"SELECT r.id, r.name, r.color, r.created_at, r.updated_at,
                   COUNT(m.id) AS move_count,
@@ -42,9 +46,11 @@ async fn list(State(pool): State<PgPool>) -> Result<Json<Vec<RepertoireWithCount
                   ) AS first_moves
            FROM repertoires r
            LEFT JOIN moves m ON m.repertoire_id = r.id
+           WHERE r.user_id = $1
            GROUP BY r.id
            ORDER BY r.created_at DESC"#,
     )
+    .bind(auth.user_id)
     .fetch_all(&pool)
     .await?;
     Ok(Json(repertoires))
@@ -52,19 +58,21 @@ async fn list(State(pool): State<PgPool>) -> Result<Json<Vec<RepertoireWithCount
 
 async fn create(
     State(pool): State<PgPool>,
+    auth: AuthUser,
     Json(input): Json<CreateRepertoire>,
 ) -> Result<Json<Repertoire>, AppError> {
     if input.color != "white" && input.color != "black" {
         return Err(AppError::Validation("color must be 'white' or 'black'".into()));
     }
     let rep = sqlx::query_as::<_, Repertoire>(
-        r#"INSERT INTO repertoires (id, name, color, created_at, updated_at)
-           VALUES ($1, $2, $3, NOW(), NOW())
+        r#"INSERT INTO repertoires (id, name, color, user_id, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, NOW(), NOW())
            RETURNING *"#,
     )
     .bind(Uuid::new_v4())
     .bind(&input.name)
     .bind(&input.color)
+    .bind(auth.user_id)
     .fetch_one(&pool)
     .await?;
     Ok(Json(rep))
@@ -72,12 +80,14 @@ async fn create(
 
 async fn get_one(
     State(pool): State<PgPool>,
+    auth: AuthUser,
     Path(id): Path<Uuid>,
 ) -> Result<Json<Repertoire>, AppError> {
     let rep = sqlx::query_as::<_, Repertoire>(
-        "SELECT * FROM repertoires WHERE id = $1",
+        "SELECT * FROM repertoires WHERE id = $1 AND user_id = $2",
     )
     .bind(id)
+    .bind(auth.user_id)
     .fetch_optional(&pool)
     .await?
     .ok_or_else(|| AppError::NotFound("Repertoire not found".into()))?;
@@ -86,15 +96,17 @@ async fn get_one(
 
 async fn update(
     State(pool): State<PgPool>,
+    auth: AuthUser,
     Path(id): Path<Uuid>,
     Json(input): Json<UpdateRepertoire>,
 ) -> Result<Json<Repertoire>, AppError> {
     let rep = sqlx::query_as::<_, Repertoire>(
         r#"UPDATE repertoires SET name = COALESCE($2, name), updated_at = NOW()
-           WHERE id = $1 RETURNING *"#,
+           WHERE id = $1 AND user_id = $3 RETURNING *"#,
     )
     .bind(id)
     .bind(&input.name)
+    .bind(auth.user_id)
     .fetch_optional(&pool)
     .await?
     .ok_or_else(|| AppError::NotFound("Repertoire not found".into()))?;
@@ -103,10 +115,12 @@ async fn update(
 
 async fn delete(
     State(pool): State<PgPool>,
+    auth: AuthUser,
     Path(id): Path<Uuid>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let result = sqlx::query("DELETE FROM repertoires WHERE id = $1")
+    let result = sqlx::query("DELETE FROM repertoires WHERE id = $1 AND user_id = $2")
         .bind(id)
+        .bind(auth.user_id)
         .execute(&pool)
         .await?;
     if result.rows_affected() == 0 {
