@@ -116,6 +116,8 @@
 		color: var(--color-muted);
 		font-weight: 500;
 		text-decoration: none;
+		display: flex;
+		align-items: center;
 	}
 
 	.username:hover {
