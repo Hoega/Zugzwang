@@ -90,6 +90,16 @@ export interface HeatmapEntry {
 	accuracy: number;
 }
 
+export interface ActivityDay {
+	date: string;
+	count: number;
+}
+
+export interface ActivityResponse {
+	days: ActivityDay[];
+	current_streak: number;
+}
+
 export interface WeakMove {
 	move_node: MoveNode;
 	line: MoveNode[];
