@@ -35,6 +35,7 @@ pub struct RepertoireStats {
     pub move_count: i64,
     pub due_count: i64,
     pub mastery_percentage: f64,
+    pub accuracy_7d: f64,
 }
 
 #[derive(serde::Serialize, sqlx::FromRow)]
@@ -139,11 +140,26 @@ async fn repertoire_stats(
     .await
     .unwrap_or(0.0);
 
+    let accuracy_7d: f64 = sqlx::query_scalar(
+        r#"SELECT COALESCE(
+            CAST(SUM(CASE WHEN rl.was_correct THEN 1 ELSE 0 END) AS FLOAT) /
+            NULLIF(COUNT(*), 0), 0.0)
+           FROM review_log rl
+           INNER JOIN moves m ON m.id = rl.move_id
+           WHERE m.repertoire_id = $1
+             AND rl.reviewed_at >= NOW() - INTERVAL '7 days'"#,
+    )
+    .bind(id)
+    .fetch_one(&pool)
+    .await
+    .unwrap_or(0.0);
+
     Ok(Json(RepertoireStats {
         repertoire_id: id,
         move_count,
         due_count,
         mastery_percentage,
+        accuracy_7d,
     }))
 }
 

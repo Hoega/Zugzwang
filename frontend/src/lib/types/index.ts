@@ -81,6 +81,7 @@ export interface RepertoireStats {
 	move_count: number;
 	due_count: number;
 	mastery_percentage: number;
+	accuracy_7d: number;
 }
 
 export interface HeatmapEntry {

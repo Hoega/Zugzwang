@@ -177,14 +177,25 @@
 								{stats?.due_count ?? 0} due
 							</span>
 						</div>
-						<div class="progress-bar-wrap">
-							<div
-								class="progress-bar"
-								style="width: {((stats?.mastery_percentage ?? 0) * 100).toFixed(0)}%"
-							></div>
-							<span class="progress-label">
-								{((stats?.mastery_percentage ?? 0) * 100).toFixed(0)}%
-							</span>
+						<div class="rep-meters">
+							<div class="meter">
+								<div class="progress-bar-wrap">
+									<div
+										class="progress-bar"
+										style="width: {((stats?.mastery_percentage ?? 0) * 100).toFixed(0)}%"
+									></div>
+									<span class="progress-label">
+										{((stats?.mastery_percentage ?? 0) * 100).toFixed(0)}%
+									</span>
+								</div>
+								<span class="meter-label">Mastery</span>
+							</div>
+							<div class="meter">
+								<span class="acc-inline {accuracyClass(stats?.accuracy_7d ?? 0)}">
+									{((stats?.accuracy_7d ?? 0) * 100).toFixed(0)}%
+								</span>
+								<span class="meter-label">7d Accuracy</span>
+							</div>
 						</div>
 						<div class="rep-actions">
 							<a class="drill-btn" href="/train/{rep.id}">
@@ -305,8 +316,35 @@
 		color: var(--color-muted);
 	}
 
+	.rep-meters {
+		display: flex;
+		gap: 1rem;
+		align-items: center;
+	}
+
+	.meter {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.15rem;
+	}
+
+	.meter-label {
+		font-size: 0.65rem;
+		color: var(--color-muted);
+		text-transform: uppercase;
+	}
+
+	.acc-inline {
+		font-size: 1.1rem;
+		font-weight: 700;
+		padding: 0 0.3rem;
+		border-radius: 4px;
+		line-height: 20px;
+	}
+
 	.progress-bar-wrap {
-		width: 200px;
+		width: 120px;
 		height: 20px;
 		background: #eee;
 		border-radius: 10px;
@@ -550,6 +588,11 @@
 
 		.rep-row {
 			flex-wrap: wrap;
+		}
+
+		.rep-meters {
+			width: 100%;
+			justify-content: center;
 		}
 
 		.progress-bar-wrap {

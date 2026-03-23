@@ -99,7 +99,9 @@ The backend (shakmaty) is the canonical FEN source. When a move is added, the ba
 | `/api/pgn/:id/export` | GET | Export repertoire as PGN |
 | `/api/stats/overview` | GET | Global stats |
 | `/api/stats/:id` | GET | Per-repertoire stats |
+| `/api/stats/activity` | GET | Daily review counts (last 15 weeks) + current streak |
 | `/api/stats/:id/heatmap` | GET | Accuracy by destination square |
+| `/api/stats/:id/weakest` | GET | Top 10 weakest moves (lowest accuracy, min 3 attempts) |
 | `/api/repertoires/:id/variants` | GET | List named variants |
 | `/api/repertoires/:id/transpositions` | GET | Find transposition groups by FEN |
 | `/api/repertoires/:id/gaps` | GET | Coverage gap analysis |
