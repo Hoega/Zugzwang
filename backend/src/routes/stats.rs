@@ -8,12 +8,15 @@ use uuid::Uuid;
 
 use crate::auth::{verify_ownership, AuthUser};
 use crate::error::AppError;
+use crate::models::chess_move::MoveNode;
+use crate::services::tree;
 
 pub fn router() -> Router<PgPool> {
     Router::new()
         .route("/api/stats/overview", get(overview))
         .route("/api/stats/{id}", get(repertoire_stats))
         .route("/api/stats/{id}/heatmap", get(heatmap))
+        .route("/api/stats/{id}/weakest", get(weakest))
 }
 
 #[derive(serde::Serialize)]
@@ -168,4 +171,67 @@ async fn heatmap(
     .await?;
 
     Ok(Json(entries))
+}
+
+#[derive(serde::Serialize)]
+pub struct WeakMove {
+    pub move_node: MoveNode,
+    pub line: Vec<MoveNode>,
+    pub accuracy: f64,
+    pub total_attempts: i64,
+}
+
+#[derive(sqlx::FromRow)]
+struct WeakMoveRow {
+    move_id: Uuid,
+    total: i64,
+    accuracy: f64,
+}
+
+async fn weakest(
+    State(pool): State<PgPool>,
+    auth: AuthUser,
+    Path(id): Path<Uuid>,
+) -> Result<Json<Vec<WeakMove>>, AppError> {
+    verify_ownership(&pool, id, auth.user_id).await?;
+
+    let rows = sqlx::query_as::<_, WeakMoveRow>(
+        r#"SELECT m.id as move_id,
+                  COUNT(*) as total,
+                  COALESCE(
+                      CAST(SUM(CASE WHEN rl.was_correct THEN 1 ELSE 0 END) AS FLOAT) /
+                      NULLIF(COUNT(*), 0), 0.0
+                  ) as accuracy
+           FROM review_log rl
+           INNER JOIN moves m ON m.id = rl.move_id
+           WHERE m.repertoire_id = $1
+           GROUP BY m.id
+           HAVING COUNT(*) >= 3
+           ORDER BY accuracy ASC, total DESC
+           LIMIT 10"#,
+    )
+    .bind(id)
+    .fetch_all(&pool)
+    .await?;
+
+    let mut result = Vec::new();
+    for row in rows {
+        let move_node = sqlx::query_as::<_, MoveNode>(
+            "SELECT * FROM moves WHERE id = $1",
+        )
+        .bind(row.move_id)
+        .fetch_one(&pool)
+        .await?;
+
+        let line = tree::get_line_to_root(&pool, row.move_id).await?;
+
+        result.push(WeakMove {
+            move_node,
+            line,
+            accuracy: row.accuracy,
+            total_attempts: row.total,
+        });
+    }
+
+    Ok(Json(result))
 }

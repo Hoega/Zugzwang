@@ -90,6 +90,13 @@ export interface HeatmapEntry {
 	accuracy: number;
 }
 
+export interface WeakMove {
+	move_node: MoveNode;
+	line: MoveNode[];
+	accuracy: number;
+	total_attempts: number;
+}
+
 export interface TranspositionGroup {
 	fen: string;
 	move_ids: string[];

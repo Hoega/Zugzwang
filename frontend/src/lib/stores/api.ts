@@ -10,6 +10,7 @@ import type {
 	StatsOverview,
 	RepertoireStats,
 	HeatmapEntry,
+	WeakMove,
 	TranspositionGroup,
 	BundleExport,
 	AuthResponse,
@@ -119,6 +120,8 @@ export const api = {
 	getRepertoireStats: (id: string) => request<RepertoireStats>(`/api/stats/${id}`),
 
 	getHeatmap: (id: string) => request<HeatmapEntry[]>(`/api/stats/${id}/heatmap`),
+
+	getWeakestMoves: (id: string) => request<WeakMove[]>(`/api/stats/${id}/weakest`),
 
 	// Bundle export/import
 	exportBundle: () => request<BundleExport>('/api/bundle/export'),

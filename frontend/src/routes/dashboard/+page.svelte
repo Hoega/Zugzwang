@@ -1,17 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api } from '$lib/stores/api';
-	import type { StatsOverview, Repertoire, RepertoireStats, HeatmapEntry } from '$lib/types';
+	import type { StatsOverview, Repertoire, RepertoireStats, WeakMove } from '$lib/types';
 
 	let overview = $state<StatsOverview | null>(null);
 	let repertoires = $state<Repertoire[]>([]);
 	let repStats = $state<Map<string, RepertoireStats>>(new Map());
-	let heatmapData = $state<HeatmapEntry[]>([]);
-	let selectedRepId = $state<string | null>(null);
+	let weakMoves = $state<Map<string, WeakMove[]>>(new Map());
+	let expandedRepId = $state<string | null>(null);
+	let loadingWeak = $state(false);
 	let loading = $state(true);
-
-	const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
-	const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
 
 	onMount(async () => {
 		try {
@@ -31,26 +29,38 @@
 		loading = false;
 	});
 
-	async function loadHeatmap(repId: string) {
-		selectedRepId = repId;
-		try {
-			heatmapData = await api.getHeatmap(repId);
-		} catch (e) {
-			console.error('Failed to load heatmap:', e);
+	async function toggleWeakest(repId: string) {
+		if (expandedRepId === repId) {
+			expandedRepId = null;
+			return;
+		}
+		expandedRepId = repId;
+		if (!weakMoves.has(repId)) {
+			loadingWeak = true;
+			try {
+				const moves = await api.getWeakestMoves(repId);
+				weakMoves.set(repId, moves);
+				weakMoves = weakMoves;
+			} catch (e) {
+				console.error('Failed to load weakest moves:', e);
+			}
+			loadingWeak = false;
 		}
 	}
 
-	function getSquareAccuracy(file: string, rank: string): number | null {
-		const square = file + rank;
-		const entry = heatmapData.find((e) => e.square === square);
-		return entry ? entry.accuracy : null;
+	function formatLine(wm: WeakMove): string {
+		return wm.line
+			.map((m, i) => {
+				const prefix = m.is_white_move ? `${m.move_number}.` : i === 0 ? `${m.move_number}...` : '';
+				return prefix + m.san_move;
+			})
+			.join(' ');
 	}
 
-	function accuracyColor(accuracy: number | null): string {
-		if (accuracy === null) return '#f0f0f0';
-		const r = Math.round(255 * (1 - accuracy));
-		const g = Math.round(255 * accuracy);
-		return `rgb(${r}, ${g}, 80)`;
+	function accuracyClass(accuracy: number): string {
+		if (accuracy < 0.4) return 'acc-bad';
+		if (accuracy < 0.7) return 'acc-mid';
+		return 'acc-ok';
 	}
 </script>
 
@@ -83,63 +93,71 @@
 		<div class="rep-list">
 			{#each repertoires as rep}
 				{@const stats = repStats.get(rep.id)}
-				<div class="rep-row">
-					<div class="rep-info">
-						<span class="rep-name">{rep.name}</span>
-						<span class="rep-meta">
-							{stats?.move_count ?? 0} moves &middot;
-							{stats?.due_count ?? 0} due
-						</span>
+				{@const weak = weakMoves.get(rep.id)}
+				<div class="rep-card" class:expanded={expandedRepId === rep.id}>
+					<div class="rep-row">
+						<div class="rep-info">
+							<span class="rep-name">{rep.name}</span>
+							<span class="rep-meta">
+								{stats?.move_count ?? 0} moves &middot;
+								{stats?.due_count ?? 0} due
+							</span>
+						</div>
+						<div class="progress-bar-wrap">
+							<div
+								class="progress-bar"
+								style="width: {((stats?.mastery_percentage ?? 0) * 100).toFixed(0)}%"
+							></div>
+							<span class="progress-label">
+								{((stats?.mastery_percentage ?? 0) * 100).toFixed(0)}%
+							</span>
+						</div>
+						<div class="rep-actions">
+							<a class="drill-btn" href="/train/{rep.id}">
+								Drill{stats?.due_count ? ` (${stats.due_count})` : ''}
+							</a>
+							<button
+								class="weakest-btn"
+								class:active={expandedRepId === rep.id}
+								onclick={() => toggleWeakest(rep.id)}
+							>
+								Weakest
+							</button>
+						</div>
 					</div>
-					<div class="progress-bar-wrap">
-						<div
-							class="progress-bar"
-							style="width: {((stats?.mastery_percentage ?? 0) * 100).toFixed(0)}%"
-						></div>
-						<span class="progress-label">
-							{((stats?.mastery_percentage ?? 0) * 100).toFixed(0)}%
-						</span>
-					</div>
-					<div class="rep-actions">
-						<a class="drill-btn" href="/train/{rep.id}">
-							Drill{stats?.due_count ? ` (${stats.due_count})` : ''}
-						</a>
-						<button class="heatmap-btn" onclick={() => loadHeatmap(rep.id)}>
-							Heatmap
-						</button>
-					</div>
+
+					{#if expandedRepId === rep.id}
+						<div class="weak-section">
+							{#if loadingWeak && !weak}
+								<p class="weak-loading">Loading...</p>
+							{:else if weak && weak.length > 0}
+								<div class="weak-list">
+									{#each weak as wm}
+										<div class="weak-item">
+											<div class="weak-line">
+												<span class="line-moves">{formatLine(wm)}</span>
+												<span class="weak-target">{wm.move_node.san_move}</span>
+											</div>
+											<div class="weak-stats">
+												<span class="acc-badge {accuracyClass(wm.accuracy)}">
+													{(wm.accuracy * 100).toFixed(0)}%
+												</span>
+												<span class="attempt-count">{wm.total_attempts} attempts</span>
+												<a class="drill-link" href="/train/{rep.id}?from_move_id={wm.move_node.id}">
+													Drill
+												</a>
+											</div>
+										</div>
+									{/each}
+								</div>
+							{:else}
+								<p class="weak-empty">No weak moves found (need at least 3 attempts per move)</p>
+							{/if}
+						</div>
+					{/if}
 				</div>
 			{/each}
 		</div>
-
-		{#if selectedRepId && heatmapData.length > 0}
-			<h2>Accuracy Heatmap</h2>
-			<div class="heatmap">
-				{#each ranks as rank}
-					<div class="heatmap-row">
-						<span class="rank-label">{rank}</span>
-						{#each files as file}
-							{@const acc = getSquareAccuracy(file, rank)}
-							<div
-								class="heatmap-cell"
-								style="background: {accuracyColor(acc)}"
-								title="{file}{rank}: {acc !== null ? (acc * 100).toFixed(0) + '%' : 'no data'}"
-							>
-								{#if acc !== null}
-									{(acc * 100).toFixed(0)}
-								{/if}
-							</div>
-						{/each}
-					</div>
-				{/each}
-				<div class="heatmap-row file-labels">
-					<span class="rank-label"></span>
-					{#each files as file}
-						<span class="file-label">{file}</span>
-					{/each}
-				</div>
-			</div>
-		{/if}
 	{/if}
 </div>
 
@@ -185,13 +203,17 @@
 		gap: 0.5rem;
 	}
 
+	.rep-card {
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: 8px;
+		overflow: hidden;
+	}
+
 	.rep-row {
 		display: flex;
 		align-items: center;
 		gap: 1rem;
-		background: var(--color-surface);
-		border: 1px solid var(--color-border);
-		border-radius: 8px;
 		padding: 0.75rem 1rem;
 	}
 
@@ -258,7 +280,7 @@
 		opacity: 0.9;
 	}
 
-	.heatmap-btn {
+	.weakest-btn {
 		padding: 0.3rem 0.6rem;
 		border: 1px solid var(--color-border);
 		border-radius: 4px;
@@ -267,45 +289,101 @@
 		font-size: 0.8rem;
 	}
 
-	.heatmap {
-		display: inline-block;
-		margin-top: 0.5rem;
+	.weakest-btn.active {
+		background: var(--color-border);
 	}
 
-	.heatmap-row {
-		display: flex;
-		gap: 2px;
+	/* Weak moves section */
+	.weak-section {
+		border-top: 1px solid var(--color-border);
+		padding: 0.75rem 1rem;
 	}
 
-	.rank-label {
-		width: 20px;
+	.weak-loading,
+	.weak-empty {
+		font-size: 0.85rem;
+		color: var(--color-muted);
+		margin: 0;
+	}
+
+	.weak-list {
+		display: grid;
+		gap: 0.5rem;
+	}
+
+	.weak-item {
 		display: flex;
 		align-items: center;
-		justify-content: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		padding: 0.4rem 0;
+	}
+
+	.weak-item + .weak-item {
+		border-top: 1px solid var(--color-border);
+		padding-top: 0.5rem;
+	}
+
+	.weak-line {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.line-moves {
+		font-size: 0.8rem;
+		color: var(--color-muted);
+		word-break: break-word;
+	}
+
+	.weak-target {
+		font-weight: 700;
+		font-size: 0.85rem;
+		margin-left: 0.25rem;
+	}
+
+	.weak-stats {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		flex-shrink: 0;
+	}
+
+	.acc-badge {
+		font-size: 0.75rem;
+		font-weight: 700;
+		padding: 0.15rem 0.4rem;
+		border-radius: 4px;
+	}
+
+	.acc-bad {
+		background: #fee2e2;
+		color: #dc2626;
+	}
+
+	.acc-mid {
+		background: #fef3c7;
+		color: #d97706;
+	}
+
+	.acc-ok {
+		background: #dcfce7;
+		color: #16a34a;
+	}
+
+	.attempt-count {
 		font-size: 0.75rem;
 		color: var(--color-muted);
 	}
 
-	.heatmap-cell {
-		width: 50px;
-		height: 50px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 0.7rem;
+	.drill-link {
+		font-size: 0.8rem;
 		font-weight: 600;
-		border-radius: 2px;
+		color: var(--color-accent, #4a90d9);
+		text-decoration: none;
 	}
 
-	.file-labels {
-		margin-top: 2px;
-	}
-
-	.file-label {
-		width: 50px;
-		text-align: center;
-		font-size: 0.75rem;
-		color: var(--color-muted);
+	.drill-link:hover {
+		text-decoration: underline;
 	}
 
 	@media (max-width: 768px) {
@@ -322,18 +400,25 @@
 		}
 
 		.drill-btn,
-		.heatmap-btn {
+		.weakest-btn {
 			min-height: 44px;
 			padding: 0.5rem 1rem;
 		}
 
-		.heatmap-cell {
-			width: 40px;
-			height: 40px;
+		.weak-item {
+			flex-direction: column;
+			align-items: flex-start;
 		}
 
-		.file-label {
-			width: 40px;
+		.weak-stats {
+			width: 100%;
+		}
+
+		.drill-link {
+			min-height: 44px;
+			display: flex;
+			align-items: center;
+			padding: 0 0.5rem;
 		}
 	}
 </style>
