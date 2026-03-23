@@ -19,18 +19,21 @@
 
 	let evalText = $derived.by(() => {
 		if (score === null && mate === null) return '...';
+		const flip = orientation === 'black' ? -1 : 1;
 		if (mate !== null) {
-			return `M${Math.abs(mate)}`;
+			const m = mate * flip;
+			return `${m > 0 ? '+' : ''}M${Math.abs(mate)}`;
 		}
-		const val = score! / 100;
+		const val = (score! / 100) * flip;
 		if (val > 0) return `+${val.toFixed(1)}`;
 		if (val < 0) return val.toFixed(1);
 		return '0.0';
 	});
 
-	let isWhiteAdvantage = $derived(
-		mate !== null ? mate > 0 : (score ?? 0) >= 0
-	);
+	let isWhiteAdvantage = $derived.by(() => {
+		const adv = mate !== null ? mate > 0 : (score ?? 0) >= 0;
+		return orientation === 'black' ? !adv : adv;
+	});
 </script>
 
 <div class="eval-bar">

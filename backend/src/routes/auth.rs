@@ -13,6 +13,7 @@ pub fn router() -> Router<PgPool> {
         .route("/api/auth/login", post(login))
         .route("/api/auth/logout", post(logout))
         .route("/api/auth/me", get(me))
+        .route("/api/auth/change-password", post(change_password))
 }
 
 #[derive(serde::Deserialize)]
@@ -159,6 +160,43 @@ async fn logout(
         auth::delete_session(&pool, cookie.value()).await?;
     }
     clear_session_cookie(&cookies);
+    Ok(Json(serde_json::json!({ "ok": true })))
+}
+
+#[derive(serde::Deserialize)]
+struct ChangePasswordRequest {
+    current_password: String,
+    new_password: String,
+}
+
+async fn change_password(
+    State(pool): State<PgPool>,
+    auth_user: AuthUser,
+    Json(input): Json<ChangePasswordRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
+        .bind(auth_user.user_id)
+        .fetch_one(&pool)
+        .await?;
+
+    if !auth::verify_password(&input.current_password, &user.password_hash)? {
+        return Err(AppError::Validation("Current password is incorrect".into()));
+    }
+
+    if input.new_password.len() < 8 {
+        return Err(AppError::Validation(
+            "New password must be at least 8 characters".into(),
+        ));
+    }
+
+    let new_hash = auth::hash_password(&input.new_password)?;
+
+    sqlx::query("UPDATE users SET password_hash = $1 WHERE id = $2")
+        .bind(&new_hash)
+        .bind(auth_user.user_id)
+        .execute(&pool)
+        .await?;
+
     Ok(Json(serde_json::json!({ "ok": true })))
 }
 

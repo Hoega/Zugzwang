@@ -36,7 +36,7 @@
 			<a href="/dashboard">Dashboard</a>
 		</div>
 		<div class="user-menu">
-			<span class="username">{auth.user?.username}</span>
+			<a href="/settings" class="username">{auth.user?.username}</a>
 			<button class="logout-btn" onclick={() => auth.logout()}>Log out</button>
 		</div>
 	</nav>
@@ -112,6 +112,11 @@
 		font-size: 0.9rem;
 		color: var(--color-muted);
 		font-weight: 500;
+		text-decoration: none;
+	}
+
+	.username:hover {
+		color: var(--color-text);
 	}
 
 	.logout-btn {
