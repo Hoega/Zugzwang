@@ -420,6 +420,12 @@
 				{/if}
 				<Board config={boardConfig} onMove={handleMove} shapes={engineArrows} />
 			</div>
+			<div class="nav-buttons mobile-nav">
+				<button onclick={goToStart} title="Start">&laquo;</button>
+				<button onclick={goBack} title="Back">&lsaquo;</button>
+				<button onclick={goForward} title="Forward">&rsaquo;</button>
+				<button onclick={goToEnd} title="End">&raquo;</button>
+			</div>
 		</div>
 
 		<div class="sidebar-right">
@@ -609,7 +615,8 @@
 
 	.board-area {
 		display: flex;
-		justify-content: center;
+		flex-direction: column;
+		align-items: center;
 	}
 
 	.board-with-eval {
@@ -682,6 +689,10 @@
 		font-size: 0.7rem;
 	}
 
+	.mobile-nav {
+		display: none;
+	}
+
 	@media (max-width: 768px) {
 		.toolbar {
 			flex-wrap: wrap;
@@ -702,6 +713,14 @@
 
 		.board-area {
 			order: -1;
+		}
+
+		.mobile-nav {
+			display: flex;
+		}
+
+		.sidebar-left .nav-buttons {
+			display: none;
 		}
 
 		.board-with-eval {

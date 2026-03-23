@@ -14,6 +14,8 @@
 		type LichessMove,
 		type DatabaseType
 	} from '$lib/stores/lichess';
+	import { api } from '$lib/stores/api';
+	import type { Repertoire } from '$lib/types';
 	import type { Config } from 'chessground/config';
 
 	interface HistoryEntry {
@@ -39,6 +41,11 @@
 	let engineLines = $state<MultiPvLine[]>([]);
 	let engine: Engine | null = null;
 	let engineReady = $state(false);
+
+	let repertoires = $state<Repertoire[]>([]);
+	let selectedRepertoireId = $state('');
+	let addingLine = $state(false);
+	let addLineResult = $state<{ success: boolean; message: string } | null>(null);
 
 	let boardConfig = $derived.by(() => {
 		const chess = new Chess(currentFen);
@@ -98,6 +105,7 @@
 				engineReady = true;
 			})
 			.catch(() => {});
+		api.listRepertoires().then(r => { repertoires = r; }).catch(() => {});
 
 		return () => {
 			engine?.destroy();
@@ -248,6 +256,46 @@
 			flipBoard();
 		}
 	}
+
+	async function addLineToRepertoire() {
+		if (addingLine || !selectedRepertoireId || moveHistory.length === 0) return;
+		addingLine = true;
+		addLineResult = null;
+
+		const movesToAdd = moveHistory.slice(0, historyIndex + 1);
+		if (movesToAdd.length === 0) {
+			addingLine = false;
+			return;
+		}
+
+		let parentId: string | null = null;
+		let parentFen = STARTING_FEN;
+		let addedCount = 0;
+
+		try {
+			for (const move of movesToAdd) {
+				const newNode = await api.addMove(selectedRepertoireId, {
+					parent_id: parentId,
+					fen: parentFen,
+					uci_move: move.uci
+				});
+				parentId = newNode.id;
+				parentFen = newNode.fen;
+				addedCount++;
+			}
+			addLineResult = { success: true, message: `Added ${addedCount} move${addedCount !== 1 ? 's' : ''} to repertoire` };
+		} catch (e) {
+			addLineResult = { success: false, message: e instanceof Error ? e.message : 'Failed to add line' };
+		}
+		addingLine = false;
+	}
+
+	$effect(() => {
+		if (addLineResult) {
+			const timer = setTimeout(() => { addLineResult = null; }, 3000);
+			return () => clearTimeout(timer);
+		}
+	});
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -400,6 +448,12 @@
 					shapes={engineArrows}
 				/>
 			</div>
+			<div class="nav-buttons mobile-nav">
+				<button onclick={goToStart} title="Start">&laquo;</button>
+				<button onclick={goBack} title="Back">&lsaquo;</button>
+				<button onclick={goForward} title="Forward">&rsaquo;</button>
+				<button onclick={goToEnd} title="End">&raquo;</button>
+			</div>
 		</div>
 
 		<div class="sidebar-right">
@@ -436,12 +490,37 @@
 					</div>
 				{/each}
 			</div>
-			<div class="nav-buttons">
+			<div class="nav-buttons sidebar-nav">
 				<button onclick={goToStart} title="Start">&laquo;</button>
 				<button onclick={goBack} title="Back">&lsaquo;</button>
 				<button onclick={goForward} title="Forward">&rsaquo;</button>
 				<button onclick={goToEnd} title="End">&raquo;</button>
 			</div>
+			{#if moveHistory.length > 0 && repertoires.length > 0}
+				<div class="add-to-repertoire">
+					<h4>Add to Repertoire</h4>
+					<div class="add-controls">
+						<select bind:value={selectedRepertoireId}>
+							<option value="">Select repertoire...</option>
+							{#each repertoires as rep}
+								<option value={rep.id}>{rep.name} ({rep.color})</option>
+							{/each}
+						</select>
+						<button
+							class="add-line-btn"
+							onclick={addLineToRepertoire}
+							disabled={!selectedRepertoireId || addingLine}
+						>
+							{addingLine ? 'Adding...' : 'Add line'}
+						</button>
+					</div>
+					{#if addLineResult}
+						<div class="add-result" class:success={addLineResult.success} class:error={!addLineResult.success}>
+							{addLineResult.message}
+						</div>
+					{/if}
+				</div>
+			{/if}
 			<div class="shortcuts">
 				<h4>Shortcuts</h4>
 				<ul>
@@ -715,7 +794,8 @@
 
 	.board-area {
 		display: flex;
-		justify-content: center;
+		flex-direction: column;
+		align-items: center;
 	}
 
 	.board-with-eval {
@@ -825,6 +905,74 @@
 		font-size: 0.7rem;
 	}
 
+	.mobile-nav {
+		display: none;
+	}
+
+	.add-to-repertoire {
+		padding: 0.75rem 1rem;
+		border-top: 1px solid var(--color-border);
+	}
+
+	.add-to-repertoire h4 {
+		font-size: 0.8rem;
+		margin: 0 0 0.5rem;
+		color: var(--color-muted);
+	}
+
+	.add-controls {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	.add-controls select {
+		flex: 1;
+		padding: 0.3rem 0.4rem;
+		border: 1px solid var(--color-border);
+		border-radius: 4px;
+		background: var(--color-bg, #1a1a2e);
+		color: var(--color-text);
+		font-size: 0.8rem;
+	}
+
+	.add-line-btn {
+		padding: 0.3rem 0.6rem;
+		border: none;
+		border-radius: 4px;
+		background: var(--color-primary);
+		color: white;
+		cursor: pointer;
+		font-size: 0.8rem;
+		font-weight: 600;
+		white-space: nowrap;
+	}
+
+	.add-line-btn:hover:not(:disabled) {
+		opacity: 0.9;
+	}
+
+	.add-line-btn:disabled {
+		opacity: 0.5;
+		cursor: default;
+	}
+
+	.add-result {
+		margin-top: 0.4rem;
+		font-size: 0.75rem;
+		padding: 0.25rem 0.5rem;
+		border-radius: 3px;
+	}
+
+	.add-result.success {
+		color: #16a34a;
+		background: #dcfce7;
+	}
+
+	.add-result.error {
+		color: #dc2626;
+		background: #fee2e2;
+	}
+
 	@media (max-width: 768px) {
 		.toolbar {
 			flex-wrap: wrap;
@@ -847,6 +995,14 @@
 			order: -1;
 		}
 
+		.mobile-nav {
+			display: flex;
+		}
+
+		.sidebar-nav {
+			display: none;
+		}
+
 		.board-with-eval {
 			max-width: 100%;
 		}
@@ -854,6 +1010,15 @@
 		.sidebar-left,
 		.sidebar-right {
 			min-height: auto;
+		}
+
+		.add-controls {
+			flex-direction: column;
+		}
+
+		.add-controls select,
+		.add-line-btn {
+			min-height: 44px;
 		}
 
 		.moves-table .move-row {
