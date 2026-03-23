@@ -175,7 +175,8 @@
 		}
 
 		.username {
-			display: none;
+			display: inline;
+			font-size: 0.85rem;
 		}
 
 		.settings-btn {
