@@ -100,9 +100,14 @@
 							{((stats?.mastery_percentage ?? 0) * 100).toFixed(0)}%
 						</span>
 					</div>
-					<button class="heatmap-btn" onclick={() => loadHeatmap(rep.id)}>
-						Heatmap
-					</button>
+					<div class="rep-actions">
+						<a class="drill-btn" href="/train/{rep.id}">
+							Drill{stats?.due_count ? ` (${stats.due_count})` : ''}
+						</a>
+						<button class="heatmap-btn" onclick={() => loadHeatmap(rep.id)}>
+							Heatmap
+						</button>
+					</div>
 				</div>
 			{/each}
 		</div>
@@ -230,6 +235,29 @@
 		font-weight: 600;
 	}
 
+	.rep-actions {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	.drill-btn {
+		padding: 0.3rem 0.6rem;
+		border: 1px solid var(--color-accent, #4a90d9);
+		border-radius: 4px;
+		background: var(--color-accent, #4a90d9);
+		color: #fff;
+		cursor: pointer;
+		font-size: 0.8rem;
+		text-decoration: none;
+		display: flex;
+		align-items: center;
+		font-weight: 600;
+	}
+
+	.drill-btn:hover {
+		opacity: 0.9;
+	}
+
 	.heatmap-btn {
 		padding: 0.3rem 0.6rem;
 		border: 1px solid var(--color-border);
@@ -293,6 +321,7 @@
 			width: 100%;
 		}
 
+		.drill-btn,
 		.heatmap-btn {
 			min-height: 44px;
 			padding: 0.5rem 1rem;
