@@ -5,15 +5,18 @@
 		findTrickyLines,
 		type CommonLine,
 		type TrickyLine,
+		type LineMoveStep,
 		type AnalysisProgress
 	} from '$lib/utils/lineAnalysis';
 
 	let {
 		fen,
-		onNavigate
+		onNavigate,
+		onAddLine
 	}: {
 		fen: string;
 		onNavigate?: (fen: string) => void;
+		onAddLine?: (moves: LineMoveStep[]) => void;
 	} = $props();
 
 	let tab = $state<'popular' | 'traps'>('popular');
@@ -27,6 +30,10 @@
 	let analyzedDb = $state<DatabaseType>('masters');
 	let analyzedTab = $state<'popular' | 'traps'>('popular');
 
+	// Expanded line state
+	let expandedIndex = $state<number | null>(null);
+	let activeMoveIndex = $state<number>(-1);
+
 	function needsRefresh(): boolean {
 		return fen !== analyzedFen || db !== analyzedDb || tab !== analyzedTab;
 	}
@@ -38,6 +45,7 @@
 		abortController = new AbortController();
 		loading = true;
 		progress = { fetched: 0, total: 1 };
+		expandedIndex = null;
 
 		const currentFen = fen;
 		const currentDb = db;
@@ -62,6 +70,42 @@
 			}
 		}
 		loading = false;
+	}
+
+	function toggleLine(index: number) {
+		if (expandedIndex === index) {
+			expandedIndex = null;
+			activeMoveIndex = -1;
+		} else {
+			expandedIndex = index;
+			activeMoveIndex = -1;
+		}
+	}
+
+	function selectMove(moves: LineMoveStep[], idx: number) {
+		activeMoveIndex = idx;
+		onNavigate?.(moves[idx].fen);
+	}
+
+	function goBackInLine(moves: LineMoveStep[]) {
+		if (activeMoveIndex > 0) {
+			selectMove(moves, activeMoveIndex - 1);
+		} else if (activeMoveIndex === 0) {
+			activeMoveIndex = -1;
+			onNavigate?.(analyzedFen);
+		}
+	}
+
+	function goForwardInLine(moves: LineMoveStep[]) {
+		if (activeMoveIndex < moves.length - 1) {
+			selectMove(moves, activeMoveIndex + 1);
+		}
+	}
+
+	function formatMoveWithNumber(san: string, index: number): string {
+		const moveNum = Math.floor(index / 2) + 1;
+		if (index % 2 === 0) return `${moveNum}.${san}`;
+		return san;
 	}
 
 	function formatMoves(moves: { san: string }[]): string {
@@ -94,8 +138,8 @@
 <div class="explorer-lines">
 	<div class="el-header">
 		<div class="el-tabs">
-			<button class:active={tab === 'popular'} onclick={() => { tab = 'popular'; }}>Popular</button>
-			<button class:active={tab === 'traps'} onclick={() => { tab = 'traps'; }}>Traps</button>
+			<button class:active={tab === 'popular'} onclick={() => { tab = 'popular'; expandedIndex = null; }}>Popular</button>
+			<button class:active={tab === 'traps'} onclick={() => { tab = 'traps'; expandedIndex = null; }}>Traps</button>
 		</div>
 		<select bind:value={db}>
 			<option value="masters">Masters</option>
@@ -121,30 +165,55 @@
 				<p class="el-empty">{analyzedFen ? 'No common lines found' : 'Click Analyze to find popular continuations'}</p>
 			{:else}
 				{#each commonLines as line, i}
-					<button
-						class="el-line"
-						onclick={() => {
-							if (line.moves.length > 0) {
-								onNavigate?.(line.moves[line.moves.length - 1].fen);
-							}
-						}}
-					>
-						<div class="el-line-main">
-							<span class="el-line-num">{i + 1}.</span>
-							<span class="el-line-moves">{formatMoves(line.moves)}</span>
-						</div>
-						<div class="el-line-stats">
-							<span class="el-games">{formatGames(line.totalGames)} games</span>
-							{#if line.totalGames > 0}
-								<div class="el-bar">
-									<div class="el-bar-w" style="width: {(line.whiteWins / line.totalGames) * 100}%"></div>
-									<div class="el-bar-d" style="width: {(line.draws / line.totalGames) * 100}%"></div>
-									<div class="el-bar-b" style="width: {(line.blackWins / line.totalGames) * 100}%"></div>
+					<div class="el-line-wrapper" class:expanded={expandedIndex === i}>
+						<button
+							class="el-line"
+							onclick={() => toggleLine(i)}
+						>
+							<div class="el-line-main">
+								<span class="el-line-num">{i + 1}.</span>
+								<span class="el-line-moves">{formatMoves(line.moves)}</span>
+							</div>
+							<div class="el-line-stats">
+								<span class="el-games">{formatGames(line.totalGames)} games</span>
+								{#if line.totalGames > 0}
+									<div class="el-bar">
+										<div class="el-bar-w" style="width: {(line.whiteWins / line.totalGames) * 100}%"></div>
+										<div class="el-bar-d" style="width: {(line.draws / line.totalGames) * 100}%"></div>
+										<div class="el-bar-b" style="width: {(line.blackWins / line.totalGames) * 100}%"></div>
+									</div>
+									<span class="el-pct">{winPct(line)}</span>
+								{/if}
+							</div>
+						</button>
+
+						{#if expandedIndex === i}
+							<div class="el-expanded">
+								<div class="el-move-list">
+									{#each line.moves as move, mi}
+										<button
+											class="el-move-btn"
+											class:active={activeMoveIndex === mi}
+											onclick={() => selectMove(line.moves, mi)}
+										>
+											{formatMoveWithNumber(move.san, mi)}
+										</button>
+									{/each}
 								</div>
-								<span class="el-pct">{winPct(line)}</span>
-							{/if}
-						</div>
-					</button>
+								<div class="el-expanded-actions">
+									<div class="el-nav">
+										<button onclick={() => goBackInLine(line.moves)} disabled={activeMoveIndex < 0}>&lsaquo;</button>
+										<button onclick={() => goForwardInLine(line.moves)} disabled={activeMoveIndex >= line.moves.length - 1}>&rsaquo;</button>
+									</div>
+									{#if onAddLine}
+										<button class="el-add-btn" onclick={() => onAddLine?.(line.moves)}>
+											+ Add to repertoire
+										</button>
+									{/if}
+								</div>
+							</div>
+						{/if}
+					</div>
 				{/each}
 			{/if}
 		{:else}
@@ -152,34 +221,62 @@
 				<p class="el-empty">{analyzedFen ? 'No traps found at this depth' : 'Click Analyze to find tricky lines'}</p>
 			{:else}
 				{#each trickyLines as trap, i}
-					<button
-						class="el-trap"
-						onclick={() => {
-							onNavigate?.(trap.trapMove.fen);
-						}}
-					>
-						<div class="el-trap-header">
-							<span class="el-trap-num">{i + 1}.</span>
-							<span class="el-trap-desc">{trap.description}</span>
-						</div>
-						{#if trap.moves.length > 0}
-							<div class="el-trap-context">
-								<span class="el-context-label">After</span>
-								<span class="el-context-moves">{formatMoves(trap.moves)}</span>
+					<div class="el-line-wrapper" class:expanded={expandedIndex === i}>
+						<button
+							class="el-trap"
+							onclick={() => toggleLine(i)}
+						>
+							<div class="el-trap-header">
+								<span class="el-trap-num">{i + 1}.</span>
+								<span class="el-trap-desc">{trap.description}</span>
+							</div>
+							{#if trap.moves.length > 0}
+								<div class="el-trap-context">
+									<span class="el-context-label">After</span>
+									<span class="el-context-moves">{formatMoves(trap.moves)}</span>
+								</div>
+							{/if}
+							<div class="el-trap-comparison">
+								<div class="el-trap-move good">
+									<span class="el-move-san">{trap.trapMove.san}</span>
+									<span class="el-move-pct">{(trap.trapWinRate * 100).toFixed(0)}%</span>
+								</div>
+								<span class="el-vs">vs</span>
+								<div class="el-trap-move bad">
+									<span class="el-move-san">{trap.popularMove}</span>
+									<span class="el-move-pct">{(trap.popularWinRate * 100).toFixed(0)}%</span>
+								</div>
+							</div>
+						</button>
+
+						{#if expandedIndex === i}
+							{@const allMoves = [...trap.moves, trap.trapMove]}
+							<div class="el-expanded">
+								<div class="el-move-list">
+									{#each allMoves as move, mi}
+										<button
+											class="el-move-btn"
+											class:active={activeMoveIndex === mi}
+											onclick={() => selectMove(allMoves, mi)}
+										>
+											{formatMoveWithNumber(move.san, mi)}
+										</button>
+									{/each}
+								</div>
+								<div class="el-expanded-actions">
+									<div class="el-nav">
+										<button onclick={() => goBackInLine(allMoves)} disabled={activeMoveIndex < 0}>&lsaquo;</button>
+										<button onclick={() => goForwardInLine(allMoves)} disabled={activeMoveIndex >= allMoves.length - 1}>&rsaquo;</button>
+									</div>
+									{#if onAddLine}
+										<button class="el-add-btn" onclick={() => onAddLine?.(allMoves)}>
+											+ Add to repertoire
+										</button>
+									{/if}
+								</div>
 							</div>
 						{/if}
-						<div class="el-trap-comparison">
-							<div class="el-trap-move good">
-								<span class="el-move-san">{trap.trapMove.san}</span>
-								<span class="el-move-pct">{(trap.trapWinRate * 100).toFixed(0)}%</span>
-							</div>
-							<span class="el-vs">vs</span>
-							<div class="el-trap-move bad">
-								<span class="el-move-san">{trap.popularMove}</span>
-								<span class="el-move-pct">{(trap.popularWinRate * 100).toFixed(0)}%</span>
-							</div>
-						</div>
-					</button>
+					</div>
 				{/each}
 			{/if}
 		{/if}
@@ -259,7 +356,7 @@
 	}
 
 	.el-content {
-		max-height: 300px;
+		max-height: 400px;
 		overflow-y: auto;
 	}
 
@@ -271,6 +368,19 @@
 		margin: 0;
 	}
 
+	/* Line wrapper */
+	.el-line-wrapper {
+		border-top: 1px solid var(--color-border);
+	}
+
+	.el-line-wrapper:first-child {
+		border-top: none;
+	}
+
+	.el-line-wrapper.expanded {
+		background: var(--color-surface);
+	}
+
 	/* Common lines */
 	.el-line {
 		display: block;
@@ -278,14 +388,9 @@
 		text-align: left;
 		padding: 0.4rem 0.75rem;
 		border: none;
-		border-top: 1px solid var(--color-border);
 		background: transparent;
 		cursor: pointer;
 		color: var(--color-text);
-	}
-
-	.el-line:first-child {
-		border-top: none;
 	}
 
 	.el-line:hover {
@@ -331,22 +436,94 @@
 		min-width: 40px;
 	}
 
-	.el-bar-w {
-		background: #f0f0f0;
-	}
-
-	.el-bar-d {
-		background: #999;
-	}
-
-	.el-bar-b {
-		background: #333;
-	}
+	.el-bar-w { background: #f0f0f0; }
+	.el-bar-d { background: #999; }
+	.el-bar-b { background: #333; }
 
 	.el-pct {
 		font-size: 0.6rem;
 		color: var(--color-muted);
 		flex-shrink: 0;
+	}
+
+	/* Expanded line */
+	.el-expanded {
+		padding: 0.4rem 0.75rem 0.5rem;
+		border-top: 1px dashed var(--color-border);
+	}
+
+	.el-move-list {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.2rem;
+		margin-bottom: 0.4rem;
+	}
+
+	.el-move-btn {
+		padding: 0.15rem 0.35rem;
+		border: 1px solid var(--color-border);
+		border-radius: 3px;
+		background: transparent;
+		cursor: pointer;
+		font-size: 0.8rem;
+		font-weight: 500;
+		color: var(--color-text);
+	}
+
+	.el-move-btn:hover {
+		background: var(--color-border);
+	}
+
+	.el-move-btn.active {
+		background: var(--color-primary);
+		color: white;
+		border-color: var(--color-primary);
+	}
+
+	.el-expanded-actions {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.el-nav {
+		display: flex;
+		gap: 0.2rem;
+	}
+
+	.el-nav button {
+		padding: 0.15rem 0.5rem;
+		border: 1px solid var(--color-border);
+		border-radius: 3px;
+		background: var(--color-surface);
+		cursor: pointer;
+		font-size: 0.9rem;
+		color: var(--color-text);
+	}
+
+	.el-nav button:hover:not(:disabled) {
+		background: var(--color-border);
+	}
+
+	.el-nav button:disabled {
+		opacity: 0.4;
+		cursor: default;
+	}
+
+	.el-add-btn {
+		padding: 0.25rem 0.5rem;
+		border: 1px solid var(--color-primary);
+		border-radius: 4px;
+		background: var(--color-primary);
+		color: white;
+		cursor: pointer;
+		font-size: 0.75rem;
+		font-weight: 600;
+	}
+
+	.el-add-btn:hover {
+		opacity: 0.9;
 	}
 
 	/* Tricky lines */
@@ -356,14 +533,9 @@
 		text-align: left;
 		padding: 0.5rem 0.75rem;
 		border: none;
-		border-top: 1px solid var(--color-border);
 		background: transparent;
 		cursor: pointer;
 		color: var(--color-text);
-	}
-
-	.el-trap:first-child {
-		border-top: none;
 	}
 
 	.el-trap:hover {
@@ -428,13 +600,8 @@
 		color: #dc2626;
 	}
 
-	.el-move-san {
-		font-weight: 600;
-	}
-
-	.el-move-pct {
-		font-size: 0.7rem;
-	}
+	.el-move-san { font-weight: 600; }
+	.el-move-pct { font-size: 0.7rem; }
 
 	.el-vs {
 		font-size: 0.65rem;
@@ -454,6 +621,21 @@
 		.el-line,
 		.el-trap {
 			padding: 0.6rem 0.75rem;
+		}
+
+		.el-move-btn {
+			min-height: 36px;
+			padding: 0.3rem 0.5rem;
+		}
+
+		.el-nav button {
+			min-height: 44px;
+			padding: 0.3rem 0.75rem;
+		}
+
+		.el-add-btn {
+			min-height: 44px;
+			padding: 0.4rem 0.75rem;
 		}
 	}
 </style>

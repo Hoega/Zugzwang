@@ -67,7 +67,7 @@ Monorepo with a Rust/Axum backend (`backend/`) and SvelteKit 5 frontend (`fronte
 - **chessground** for board rendering (initialized in `onMount`, updated via `$effect`)
 - **chess.js** only for client-side legal move hints (`toDests()` in `utils/chess.ts`) — never as FEN authority
 - **Stores** (`stores/`): `api.ts` (typed fetch wrapper for all endpoints, 401 → redirect to `/login`), `auth.svelte.ts` (reactive auth state), `game.ts`, `repertoire.ts`, `drill.ts`, `lichess.ts` (Lichess explorer API with caching/debounce)
-- **Utils** (`utils/`): `chess.ts` (legal move dests via chess.js), `engine.ts` (`Engine` class wrapping Stockfish WASM worker with multi-PV support), `shapes.ts` (chessground arrow rendering for engine lines)
+- **Utils** (`utils/`): `chess.ts` (legal move dests via chess.js), `engine.ts` (`Engine` class wrapping Stockfish WASM worker with multi-PV support), `shapes.ts` (chessground arrow rendering for engine lines), `eco.ts` (ECO opening lookup from FEN), `lineAnalysis.ts` (common lines & trap detection via Lichess Explorer — `findCommonLines`, `findTrickyLines`)
 - **Data**: `data/eco.json` — ECO opening classification lookup
 - **Pages**: login (`/login`), home (`/`), builder (`/repertoire/[id]`), drill (`/train/[id]`), dashboard (`/dashboard`), explorer (`/explorer`), openings browser (`/openings`, `/openings/explorer`)
 - **Auth guard**: `+layout.svelte` checks `auth.check()` on mount, redirects to `/login` if unauthenticated (skipped for `/login` itself)
@@ -75,7 +75,7 @@ Monorepo with a Rust/Axum backend (`backend/`) and SvelteKit 5 frontend (`fronte
 
 ### External APIs
 
-- **Lichess Explorer** (`stores/lichess.ts`): fetches opening stats from `explorer.lichess.ovh` (masters + lichess databases). Results are cached in-memory with request debouncing and abort-on-supersede.
+- **Lichess Explorer** (`stores/lichess.ts`): fetches opening stats from `explorer.lichess.ovh` (masters + lichess databases). Results are cached in-memory with request debouncing and abort-on-supersede. `fetchExplorerQuiet()` is a non-aborting variant for batch analysis (used by `lineAnalysis.ts`). Backend proxies requests via `routes/explorer.rs` to avoid CORS.
 
 ### Key Invariant
 

@@ -11,6 +11,7 @@
 	import ExplorerLines from '$lib/components/ExplorerLines.svelte';
 	import PgnImportModal from '$lib/components/PgnImportModal.svelte';
 	import { api } from '$lib/stores/api';
+	import type { LineMoveStep } from '$lib/utils/lineAnalysis';
 	import { Engine, type MultiPvLine } from '$lib/utils/engine';
 	import { makeEngineArrows } from '$lib/utils/shapes';
 	import { toDests, turnColor, STARTING_FEN } from '$lib/utils/chess';
@@ -115,6 +116,33 @@
 		} catch (e) {
 			console.error('Failed to load analysis:', e);
 		}
+	}
+
+	let addingLine = $state(false);
+
+	async function addExplorerLine(moves: LineMoveStep[]) {
+		if (addingLine) return;
+		addingLine = true;
+		let parentId = currentNodeId;
+		let parentFen = currentFen;
+
+		try {
+			for (const move of moves) {
+				const newNode = await api.addMove(repertoireId, {
+					parent_id: parentId,
+					fen: parentFen,
+					uci_move: move.uci
+				});
+				parentId = newNode.id;
+				parentFen = newNode.fen;
+			}
+			currentFen = parentFen;
+			currentNodeId = parentId;
+			tree = await api.getMoveTree(repertoireId);
+		} catch (e) {
+			console.error('Failed to add line:', e);
+		}
+		addingLine = false;
 	}
 
 	async function handleMove(orig: string, dest: string) {
@@ -464,6 +492,7 @@
 							currentNodeId = null;
 							selectedMove = null;
 						}}
+						onAddLine={addExplorerLine}
 					/>
 				{/if}
 				<AnnotationEditor
