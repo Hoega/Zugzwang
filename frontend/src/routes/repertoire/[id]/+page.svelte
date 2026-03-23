@@ -8,6 +8,7 @@
 	import MoveLines from '$lib/components/MoveLines.svelte';
 	import AnnotationEditor from '$lib/components/AnnotationEditor.svelte';
 	import BestMoves from '$lib/components/BestMoves.svelte';
+	import ExplorerLines from '$lib/components/ExplorerLines.svelte';
 	import PgnImportModal from '$lib/components/PgnImportModal.svelte';
 	import { api } from '$lib/stores/api';
 	import { Engine, type MultiPvLine } from '$lib/utils/engine';
@@ -36,6 +37,7 @@
 	let evalScore = $state<number | null>(null);
 	let evalMate = $state<number | null>(null);
 	let showBestMoves = $state(false);
+	let showExplorerLines = $state(false);
 	let engineLines = $state<MultiPvLine[]>([]);
 	let engine: Engine | null = null;
 
@@ -389,6 +391,7 @@
 			{/if}
 			<div class="toolbar-actions">
 				<button class:active={showBestMoves} onclick={() => showBestMoves = !showBestMoves}>Best Moves</button>
+				<button class:active={showExplorerLines} onclick={() => showExplorerLines = !showExplorerLines}>Explorer</button>
 				<button onclick={() => flipped = !flipped}>Flip Board</button>
 				<button onclick={navigateToStart}>Start Position</button>
 				<button onclick={() => (showImport = true)}>Import PGN</button>
@@ -452,6 +455,16 @@
 				{/if}
 				{#if showBestMoves && engineLines.length > 0}
 					<BestMoves lines={engineLines} fen={currentFen} orientation={boardOrientation} onPlayMove={(uci) => handleMove(uci.slice(0, 2), uci.slice(2, 4))} />
+				{/if}
+				{#if showExplorerLines}
+					<ExplorerLines
+						fen={currentFen}
+						onNavigate={(targetFen) => {
+							currentFen = targetFen;
+							currentNodeId = null;
+							selectedMove = null;
+						}}
+					/>
 				{/if}
 				<AnnotationEditor
 					move={selectedMove}

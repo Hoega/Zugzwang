@@ -67,6 +67,34 @@ export async function fetchExplorer(
 	return data;
 }
 
+/** Non-aborting fetch for batch analysis — won't cancel previous in-flight requests */
+export async function fetchExplorerQuiet(
+	fen: string,
+	db: DatabaseType = 'masters',
+	signal?: AbortSignal
+): Promise<LichessExplorerResponse> {
+	const key = cacheKey(fen, db);
+	const cached = cache.get(key);
+	if (cached) return cached;
+
+	const encodedFen = encodeURIComponent(fen);
+	let url: string;
+	if (db === 'masters') {
+		url = `/api/explorer/masters?fen=${encodedFen}`;
+	} else {
+		url = `/api/explorer/lichess?fen=${encodedFen}&ratings=2200,2500&speeds=blitz,rapid,classical`;
+	}
+
+	const response = await fetch(url, { signal });
+	if (!response.ok) {
+		throw new Error(`Lichess API error: ${response.status}`);
+	}
+
+	const data: LichessExplorerResponse = await response.json();
+	cache.set(key, data);
+	return data;
+}
+
 export function fetchExplorerDebounced(
 	fen: string,
 	db: DatabaseType,
